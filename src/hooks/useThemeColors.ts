@@ -5,8 +5,28 @@ import {
   DarkTealScheme,
   LightBlueScheme,
   DarkBlueScheme,
+  LightRedScheme,
+  DarkRedScheme,
+  LightYellowScheme,
+  DarkYellowScheme,
+  LightOrangeScheme,
+  DarkOrangeScheme,
+  LightPurpleScheme,
+  DarkPurpleScheme,
+  LightGreenScheme,
+  DarkGreenScheme,
 } from '@/src/theme/colorSchemes';
-import type { ColorPalette } from '@/src/types/theme';
+import type { ColorPalette, ColorSchemeChoice } from '@/src/types/theme';
+
+const paletteByScheme: Record<ColorSchemeChoice, { light: ColorPalette; dark: ColorPalette }> = {
+  default: { light: LightTealScheme, dark: DarkTealScheme },
+  blue: { light: LightBlueScheme, dark: DarkBlueScheme },
+  red: { light: LightRedScheme, dark: DarkRedScheme },
+  yellow: { light: LightYellowScheme, dark: DarkYellowScheme },
+  orange: { light: LightOrangeScheme, dark: DarkOrangeScheme },
+  purple: { light: LightPurpleScheme, dark: DarkPurpleScheme },
+  green: { light: LightGreenScheme, dark: DarkGreenScheme },
+};
 
 /**
  * Resolves the current color palette based on theme mode, color scheme,
@@ -24,9 +44,6 @@ export function useThemeColors(): ColorPalette {
     isDark = themeMode === 'dark';
   }
 
-  if (colorScheme === 'blue') {
-    return isDark ? DarkBlueScheme : LightBlueScheme;
-  }
-
-  return isDark ? DarkTealScheme : LightTealScheme;
+  const selectedPalette = paletteByScheme[colorScheme] ?? paletteByScheme.default;
+  return isDark ? selectedPalette.dark : selectedPalette.light;
 }

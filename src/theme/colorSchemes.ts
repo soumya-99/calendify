@@ -8,6 +8,149 @@ const DOT_COLORS = {
   dotBirthday: '#E64A19',
 };
 
+interface GeneratedSchemeConfig {
+  primary: string;
+  secondary?: string;
+  tertiary?: string;
+  backgroundTint?: string;
+}
+
+function hexToRgb(hex: string) {
+  const normalized = hex.replace('#', '');
+  const value = normalized.length === 3
+    ? normalized.split('').map((char) => char + char).join('')
+    : normalized;
+
+  return {
+    r: parseInt(value.slice(0, 2), 16),
+    g: parseInt(value.slice(2, 4), 16),
+    b: parseInt(value.slice(4, 6), 16),
+  };
+}
+
+function rgbToHex(r: number, g: number, b: number) {
+  return `#${[r, g, b]
+    .map((channel) => Math.max(0, Math.min(255, channel)).toString(16).padStart(2, '0'))
+    .join('')}`;
+}
+
+function mixColors(base: string, target: string, amount: number) {
+  const a = hexToRgb(base);
+  const b = hexToRgb(target);
+
+  return rgbToHex(
+    Math.round(a.r + (b.r - a.r) * amount),
+    Math.round(a.g + (b.g - a.g) * amount),
+    Math.round(a.b + (b.b - a.b) * amount)
+  );
+}
+
+function lighten(color: string, amount: number) {
+  return mixColors(color, '#FFFFFF', amount);
+}
+
+function darken(color: string, amount: number) {
+  return mixColors(color, '#000000', amount);
+}
+
+function relativeLuminance(color: string) {
+  const { r, g, b } = hexToRgb(color);
+  const channels = [r, g, b].map((channel) => {
+    const value = channel / 255;
+    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  });
+
+  return channels[0] * 0.2126 + channels[1] * 0.7152 + channels[2] * 0.0722;
+}
+
+function readableTextColor(background: string, light = '#FFFFFF', dark = '#1A1C1E') {
+  return relativeLuminance(background) > 0.45 ? dark : light;
+}
+
+function buildLightScheme({
+  primary,
+  secondary = mixColors(primary, '#5F6368', 0.62),
+  tertiary = mixColors(primary, '#6750A4', 0.5),
+  backgroundTint = primary,
+}: GeneratedSchemeConfig): ColorPalette {
+  return {
+    primary,
+    onPrimary: readableTextColor(primary),
+    primaryContainer: lighten(primary, 0.82),
+    onPrimaryContainer: darken(primary, 0.72),
+    secondary,
+    onSecondary: readableTextColor(secondary),
+    secondaryContainer: lighten(secondary, 0.84),
+    onSecondaryContainer: darken(secondary, 0.72),
+    tertiary,
+    onTertiary: readableTextColor(tertiary),
+    tertiaryContainer: lighten(tertiary, 0.82),
+    onTertiaryContainer: darken(tertiary, 0.72),
+    error: '#BA1A1A',
+    onError: '#FFFFFF',
+    errorContainer: '#FFDAD6',
+    onErrorContainer: '#410002',
+    background: mixColors('#FAFAFA', backgroundTint, 0.06),
+    onBackground: '#1A1C1E',
+    surface: '#FFFFFF',
+    onSurface: '#1A1C1E',
+    surfaceVariant: lighten(backgroundTint, 0.86),
+    onSurfaceVariant: '#43474E',
+    outline: mixColors('#73777F', backgroundTint, 0.18),
+    outlineVariant: lighten(backgroundTint, 0.75),
+    inverseSurface: '#2F3033',
+    inverseOnSurface: '#F1F0F4',
+    inversePrimary: lighten(primary, 0.5),
+    scrim: '#000000',
+    shadow: '#000000',
+    ...DOT_COLORS,
+  };
+}
+
+function buildDarkScheme({
+  primary,
+  secondary = mixColors(primary, '#5F6368', 0.62),
+  tertiary = mixColors(primary, '#6750A4', 0.5),
+  backgroundTint = primary,
+}: GeneratedSchemeConfig): ColorPalette {
+  const lightPrimary = lighten(primary, 0.34);
+  const lightSecondary = lighten(secondary, 0.28);
+  const lightTertiary = lighten(tertiary, 0.28);
+
+  return {
+    primary: lightPrimary,
+    onPrimary: readableTextColor(lightPrimary),
+    primaryContainer: darken(primary, 0.5),
+    onPrimaryContainer: lighten(primary, 0.72),
+    secondary: lightSecondary,
+    onSecondary: readableTextColor(lightSecondary),
+    secondaryContainer: darken(secondary, 0.44),
+    onSecondaryContainer: lighten(secondary, 0.72),
+    tertiary: lightTertiary,
+    onTertiary: readableTextColor(lightTertiary),
+    tertiaryContainer: darken(tertiary, 0.42),
+    onTertiaryContainer: lighten(tertiary, 0.72),
+    error: '#FFB4AB',
+    onError: '#690005',
+    errorContainer: '#93000A',
+    onErrorContainer: '#FFDAD6',
+    background: mixColors('#111418', backgroundTint, 0.14),
+    onBackground: '#E2E2E5',
+    surface: mixColors('#1A1F24', backgroundTint, 0.16),
+    onSurface: '#E2E2E5',
+    surfaceVariant: mixColors('#43474E', backgroundTint, 0.22),
+    onSurfaceVariant: '#C3C6CF',
+    outline: mixColors('#8D9199', backgroundTint, 0.18),
+    outlineVariant: mixColors('#43474E', backgroundTint, 0.18),
+    inverseSurface: '#E2E2E5',
+    inverseOnSurface: '#1A1C1E',
+    inversePrimary: darken(primary, 0.08),
+    scrim: '#000000',
+    shadow: '#000000',
+    ...DOT_COLORS,
+  };
+}
+
 export const LightTealScheme: ColorPalette = {
   primary: '#006A5C',
   onPrimary: '#FFFFFF',
@@ -139,3 +282,73 @@ export const DarkBlueScheme: ColorPalette = {
   shadow: '#000000',
   ...DOT_COLORS,
 };
+
+export const LightRedScheme = buildLightScheme({
+  primary: '#C5221F',
+  secondary: '#8D4A46',
+  tertiary: '#A142F4',
+  backgroundTint: '#D93025',
+});
+
+export const DarkRedScheme = buildDarkScheme({
+  primary: '#C5221F',
+  secondary: '#8D4A46',
+  tertiary: '#A142F4',
+  backgroundTint: '#D93025',
+});
+
+export const LightYellowScheme = buildLightScheme({
+  primary: '#9E6A00',
+  secondary: '#7A5B1A',
+  tertiary: '#C26401',
+  backgroundTint: '#F9AB00',
+});
+
+export const DarkYellowScheme = buildDarkScheme({
+  primary: '#9E6A00',
+  secondary: '#7A5B1A',
+  tertiary: '#C26401',
+  backgroundTint: '#F9AB00',
+});
+
+export const LightOrangeScheme = buildLightScheme({
+  primary: '#B65400',
+  secondary: '#8A5833',
+  tertiary: '#D93025',
+  backgroundTint: '#FA7B17',
+});
+
+export const DarkOrangeScheme = buildDarkScheme({
+  primary: '#B65400',
+  secondary: '#8A5833',
+  tertiary: '#D93025',
+  backgroundTint: '#FA7B17',
+});
+
+export const LightPurpleScheme = buildLightScheme({
+  primary: '#7E3FF2',
+  secondary: '#6750A4',
+  tertiary: '#1A73E8',
+  backgroundTint: '#A142F4',
+});
+
+export const DarkPurpleScheme = buildDarkScheme({
+  primary: '#7E3FF2',
+  secondary: '#6750A4',
+  tertiary: '#1A73E8',
+  backgroundTint: '#A142F4',
+});
+
+export const LightGreenScheme = buildLightScheme({
+  primary: '#137333',
+  secondary: '#46664D',
+  tertiary: '#1A73E8',
+  backgroundTint: '#34A853',
+});
+
+export const DarkGreenScheme = buildDarkScheme({
+  primary: '#137333',
+  secondary: '#46664D',
+  tertiary: '#1A73E8',
+  backgroundTint: '#34A853',
+});

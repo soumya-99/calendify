@@ -60,6 +60,16 @@ const ICON_COLORS = {
   privacy: '#EF5350',
 };
 
+const COLOR_SCHEME_OPTIONS: { value: ColorSchemeChoice; label: string; swatch: string }[] = [
+  { value: 'default', label: 'Teal', swatch: '#4CAF9A' },
+  { value: 'blue', label: 'Blue', swatch: '#1A73E8' },
+  { value: 'red', label: 'Red', swatch: '#D93025' },
+  { value: 'yellow', label: 'Yellow', swatch: '#F9AB00' },
+  { value: 'orange', label: 'Orange', swatch: '#FA7B17' },
+  { value: 'purple', label: 'Purple', swatch: '#A142F4' },
+  { value: 'green', label: 'Green', swatch: '#34A853' },
+];
+
 // Make the background a much lighter, less dull version of the color
 const getLightBackground = (colorHex: string) => `${colorHex}15`;
 
@@ -193,8 +203,13 @@ export default function SettingsScreen() {
   };
 
   const colorLabels: Record<ColorSchemeChoice, string> = {
-    default: 'Default (Teal)',
+    default: 'Teal',
     blue: 'Blue',
+    red: 'Red',
+    yellow: 'Yellow',
+    orange: 'Orange',
+    purple: 'Purple',
+    green: 'Green',
   };
 
   const handleAddAccount = useCallback(() => {
@@ -566,30 +581,30 @@ export default function SettingsScreen() {
             <Text style={[TypeScale.titleLarge, styles.modalTitle, { color: colors.onSurface }]}>
               Color Scheme
             </Text>
-            {(['default', 'blue'] as const).map((scheme) => (
+            {COLOR_SCHEME_OPTIONS.map(({ value, label, swatch }) => (
               <HapticButton
-                key={scheme}
+                key={value}
                 onPress={() => {
-                  setColorScheme(scheme);
+                  setColorScheme(value);
                   setColorPickerVisible(false);
                   haptics.selection();
                 }}
                 hapticStyle="selection"
                 style={[
                   styles.optionRow,
-                  colorScheme === scheme ? { backgroundColor: `${colors.primary}10` } : {},
+                  colorScheme === value ? { backgroundColor: `${colors.primary}10` } : {},
                 ]}
               >
                 <View
                   style={[
                     styles.colorSwatch,
-                    { backgroundColor: scheme === 'blue' ? '#1A73E8' : '#4CAF9A' },
+                    { backgroundColor: swatch },
                   ]}
                 />
                 <Text style={[TypeScale.bodyLarge, { color: colors.onSurface, flex: 1 }]}>
-                  {colorLabels[scheme]}
+                  {label}
                 </Text>
-                {colorScheme === scheme && (
+                {colorScheme === value && (
                   <CheckCircle2 size={20} color={colors.primary} strokeWidth={1.75} />
                 )}
               </HapticButton>

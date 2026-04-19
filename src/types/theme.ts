@@ -1,6 +1,13 @@
 export type ThemeMode = 'system' | 'light' | 'dark';
 
-export type ColorSchemeChoice = 'default' | 'blue';
+export type ColorSchemeChoice =
+  | 'default'
+  | 'blue'
+  | 'red'
+  | 'yellow'
+  | 'orange'
+  | 'purple'
+  | 'green';
 
 export interface ColorPalette {
   primary: string;

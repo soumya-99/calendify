@@ -1,5 +1,5 @@
-import React, { useCallback } from 'react';
-import { Pressable, PressableProps, StyleSheet, ViewStyle } from 'react-native';
+import React, { Children, cloneElement, isValidElement, useCallback } from 'react';
+import { Pressable, PressableProps, StyleSheet, Text, TextProps, ViewStyle } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -52,6 +52,18 @@ export function HapticButton({
     transform: [{ scale: scale.value }],
   }));
 
+  const normalizedChildren = Children.map(children, (child) => {
+    if (!isValidElement<TextProps>(child) || child.type !== Text) {
+      return child;
+    }
+
+    return cloneElement(child, {
+      numberOfLines: child.props.numberOfLines ?? 1,
+      ellipsizeMode: child.props.ellipsizeMode ?? 'tail',
+      style: [styles.singleLineText, child.props.style],
+    });
+  });
+
   return (
     <AnimatedPressable
       onPress={handlePress}
@@ -60,7 +72,13 @@ export function HapticButton({
       style={[animatedStyle, style]}
       {...rest}
     >
-      {children}
+      {normalizedChildren}
     </AnimatedPressable>
   );
 }
+
+const styles = StyleSheet.create({
+  singleLineText: {
+    flexShrink: 1,
+  },
+});
