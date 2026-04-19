@@ -1,50 +1,89 @@
-# Welcome to your Expo app 👋
+# Calendify 🗓️
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+> The ultimate, high-performance calendar and task management experience for mobile.
 
-## Get started
+Calendify is a premium, Material-inspired mobile application built with **Expo** and **React Native**. It seamlessly bridges the gap between local hyper-speed productivity and global calendar synchronization. Designed with meticulous attention to detail, smooth animations, and a focus on visual excellence.
 
-1. Install dependencies
+---
 
-   ```bash
-   npm install
-   ```
+## ✨ Key Features
 
-2. Start the app
+### 📅 Advanced Calendar & Planning
+- **Squircle Aesthetic**: Modern day-grid with squircle (16px radius) border highlights for an elegant, premium look.
+- **Dynamic Views**: Instantly switch between dates with zero-latency transitions.
+- **Visual Richness**: High-contrast indicators for Events, Tasks, Reminders, and Birthdays.
 
-   ```bash
-   npx expo start
-   ```
+### 🔄 Dual-Sync Synchronization
+- **Export Local → Device**: Sync your local Calendify accounts directly to your Google or Apple calendars.
+- **Import Device → Local**: Pull data from any connected OS calendar into your local Calendify accounts.
+- **Safety First**: Intelligent account management prevents the deletion of your last local account, ensuring your data is always reachable.
 
-In the output, you'll find options to open the app in a
+### 🛠️ Powerful Productivity Tools
+- **Triple Entry Types**: Manage **Events**, **Tasks**, and **Reminders** with specialized logic for each.
+- **Native Precision**: Integration with `@react-native-community/datetimepicker` for a flawless native date/time picking experience.
+- **Enhanced Forms**: Keyboard-aware scrolling combined with optimized chip designs (multi-select without the bulk).
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+### 🎨 Premium Design & Customization
+- **Theme Engine**: Choose from a curated palette including **Teal, Blue, Red, Yellow, Orange, Purple, and Green**.
+- **Smooth Navigation**: Custom-built Tab Bar using `withTiming` reanimated logic for silky-smooth active indicators.
+- **Haptic Feedback**: Integrated `expo-haptics` for tactile confirmation on every meaningful interaction.
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+### 🔐 Secure Backup & Restore
+- **Privacy Native**: Export your entire application state into an encrypted `.calendify` file.
+- **Military Grade**: Backups are secured using **AES-256-GCM** encryption and **HKDF-SHA256** key derivation.
+- **One-Tap Restore**: Restore your entire workspace instantly from any backup file.
 
-## Get a fresh project
+---
 
-When you're ready, run:
+## 🚀 Tech Stack
 
+- **Framework**: [Expo SDK 55](https://expo.dev) + [React Native 0.83](https://reactnative.dev)
+- **Navigation**: [Expo Router](https://docs.expo.dev/router/introduction/) (Link-based API)
+- **State Management**: [Zustand](https://github.com/pmndrs/zustand)
+- **Persistence**: [react-native-mmkv](https://github.com/mrousavy/react-native-mmkv) (High-performance storage)
+- **Animations**: [React Native Reanimated 4](https://docs.swmansion.com/react-native-reanimated/)
+- **Icons**: [Lucide React Native](https://lucide.dev)
+- **Lists**: [@shopify/flash-list](https://shopify.github.io/flash-list/)
+
+---
+
+## 🛠️ Development
+
+### 1. Installation
 ```bash
-npm run reset-project
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+### 2. Launch Development Server
+```bash
+npm run start
+```
 
-## Learn more
+### 3. Build for Platforms
+```bash
+# For Android
+npm run android
 
-To learn more about developing your project with Expo, look at the following resources:
+# For iOS (Requires macOS)
+npm run ios
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+---
 
-## Join the community
+## 📜 Design Philosophy
 
-Join our community of developers creating universal apps.
+Calendify is built on the principle of **Visual Harmony**. We avoid generic browser defaults, opting instead for:
+- Curated HSL-tailored color palettes.
+- Smooth transitions that feel "alive" rather than "bouncy".
+- High-efficiency spacing (Spacing tokens from `src/theme/spacing.ts`).
+- Material 3 inspired header and card structures.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+---
+
+## 🛡️ Security
+
+Your data is yours. Calendify supports local-first storage with optional bi-directional sync. Backups use the modern industry-standard `AES-256-GCM` algorithm via the [@noble/ciphers](https://github.com/paulmillr/noble-ciphers) library, ensuring that sensitive data is unreadable outside of the app.
+
+---
+
+*Built with ❤️ by the Calendify Team.*

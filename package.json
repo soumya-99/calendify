@@ -1,7 +1,7 @@
 {
   "name": "calendify",
   "main": "expo-router/entry",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
@@ -10,8 +10,7 @@
     "web": "expo start --web",
     "prebuild": "expo prebuild",
     "prebuild:clean": "expo prebuild --clean",
-    "build:apk": "expo build:apk",
-    "build:apk:clean": "expo build:apk --clean",
+    "build:apk": "react-native run-android --mode=release",
     "build:ios": "expo build:ios",
     "build:ios:clean": "expo build:ios --clean",
     "lint": "expo lint"
