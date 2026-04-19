@@ -75,7 +75,7 @@ export function CalendarDay({ day, date, state, dotColors, onPress }: CalendarDa
           backgroundColor: colors.primary,
           width: size,
           height: size,
-          borderRadius: 12,
+          borderRadius: 16,
         };
       case 'todaySelected':
         return {
@@ -84,20 +84,20 @@ export function CalendarDay({ day, date, state, dotColors, onPress }: CalendarDa
           borderWidth: 2.5,
           width: size,
           height: size,
-          borderRadius: 12,
+          borderRadius: 16,
         };
       case 'selected':
         return {
           backgroundColor: colors.primaryContainer,
           width: size,
           height: size,
-          borderRadius: 12,
+          borderRadius: 16,
         };
       default:
         return {
           width: size,
           height: size,
-          borderRadius: 12,
+          borderRadius: 16,
         };
     }
   };
@@ -122,12 +122,16 @@ export function CalendarDay({ day, date, state, dotColors, onPress }: CalendarDa
     >
       <View style={[styles.dayCircle, getBackgroundStyle()]}>
         <Text
+          numberOfLines={1}
+          adjustsFontSizeToFit
           style={[
             TypeScale.bodyMedium,
             {
               color: getTextColor(),
               fontWeight: isBold ? '700' : '400',
               fontSize: 13,
+              includeFontPadding: false,
+              textAlign: 'center',
             },
           ]}
         >

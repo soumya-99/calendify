@@ -1,19 +1,18 @@
 import { TAB_ACTIVE_COLORS } from '@/src/constants/dotColors';
 import { useHaptics } from '@/src/hooks/useHaptics';
 import { useThemeColors } from '@/src/hooks/useThemeColors';
-import { Springs } from '@/src/theme/motion';
 import { TypeScale } from '@/src/theme/typography';
 import { Bell, Cake, CalendarDays, Plus, Settings2 } from 'lucide-react-native';
 import React, { useCallback, useEffect } from 'react';
 import { Pressable, StyleSheet, useWindowDimensions, View } from 'react-native';
 import Animated, {
+  Easing,
   interpolate,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
-  withTiming,
   withSpring,
-  Easing
+  withTiming
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -76,7 +75,7 @@ function TabIcon({ item, isActive, onPress, tabWidth }: TabIconProps) {
   }));
 
   const Icon = item.icon;
-  const iconColor = isActive ? item.color : `${colors.onSurfaceVariant}99`;
+  const iconColor = isActive ? '#FFFFFF' : `${colors.onSurfaceVariant}99`;
 
   return (
     <AnimatedPressable
@@ -113,13 +112,13 @@ export function CustomTabBar({ activeTab, onTabPress, onFABPress }: CustomTabBar
   const fabScale = useSharedValue(1);
 
   const activeIndex = TAB_INDEX_MAP[activeTab] ?? 0;
-  
+
   // Calculate specific positions for the 4 tabs dodging the center FAB
   const fabWidth = 64;
   const availableWidth = width - 32; // 16px padding on sides
   const halfEmptySpace = (availableWidth - fabWidth) / 2;
   const tabWidth = halfEmptySpace / 2;
-  
+
   const positions = [
     16 + tabWidth / 2, // 0
     16 + tabWidth + tabWidth / 2, // 1
@@ -136,8 +135,8 @@ export function CustomTabBar({ activeTab, onTabPress, onFABPress }: CustomTabBar
       pillColor.value = TABS[activeIndex]?.color || colors.primary;
     } else {
       pillX.value = withSpring(positions[activeIndex], {
-        damping: 20,
-        stiffness: 250,
+        damping: 25,
+        stiffness: 200,
         mass: 1,
       });
       pillColor.value = withTiming(TABS[activeIndex]?.color || colors.primary, { duration: 250 });
@@ -147,17 +146,17 @@ export function CustomTabBar({ activeTab, onTabPress, onFABPress }: CustomTabBar
   const pillAnimStyle = useAnimatedStyle(() => {
     return {
       transform: [{ translateX: pillX.value - 28 }], // 28 is half of pill width (56)
-      backgroundColor: `${pillColor.value}1A`,
+      backgroundColor: pillColor.value,
     };
   });
 
   const handleFABPress = useCallback(() => {
     haptics.heavy();
     if (!reducedMotion) {
-      fabScale.value = withSpring(0.85, Springs.quick);
+      fabScale.value = withTiming(0.9, { duration: 100 });
       setTimeout(() => {
-        fabScale.value = withSpring(1, Springs.bouncy);
-      }, 120);
+        fabScale.value = withTiming(1, { duration: 150 });
+      }, 100);
     }
     onFABPress();
   }, [haptics, fabScale, onFABPress, reducedMotion]);
@@ -182,7 +181,7 @@ export function CustomTabBar({ activeTab, onTabPress, onFABPress }: CustomTabBar
       ]}
     >
       <Animated.View style={[styles.activePill, pillAnimStyle]} />
-      
+
       <View style={styles.tabsRow}>
         {leftTabs.map((tab) => (
           <TabIcon
@@ -240,7 +239,7 @@ const styles = StyleSheet.create({
   },
   activePill: {
     position: 'absolute',
-    top: 14,
+    top: 18,
     left: 0,
     width: 56,
     height: 34,

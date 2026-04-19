@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { StyleSheet, View, ScrollView, Text, TextInput, Switch } from 'react-native';
+import { StyleSheet, View, ScrollView, Text, TextInput, Switch, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AnimatedScreen } from '@/src/components/ui/AnimatedScreen';
@@ -15,6 +15,7 @@ import { TypeScale } from '@/src/theme/typography';
 import { Spacing } from '@/src/theme/spacing';
 import { DOT_COLORS, TAG_COLORS } from '@/src/constants/dotColors';
 import { ChevronLeft } from 'lucide-react-native';
+import { FormDateTimePicker } from '@/src/components/ui/FormDateTimePicker';
 import type { RepeatRule } from '@/src/types/entries';
 
 export default function AddEventScreen() {
@@ -27,9 +28,9 @@ export default function AddEventScreen() {
   const selectedDate = useCalendarStore((s) => s.selectedDate);
 
   const [title, setTitle] = useState('');
-  const [date, setDate] = useState(selectedDate);
-  const [startTime, setStartTime] = useState('09:00');
-  const [endTime, setEndTime] = useState('10:00');
+  const [dateObj, setDateObj] = useState(new Date(`${selectedDate}T12:00:00`));
+  const [startObj, setStartObj] = useState(new Date(`${selectedDate}T09:00:00`));
+  const [endObj, setEndObj] = useState(new Date(`${selectedDate}T10:00:00`));
   const [location, setLocation] = useState('');
   const [allDay, setAllDay] = useState(false);
   const [repeat, setRepeat] = useState<RepeatRule>('NONE');
@@ -40,15 +41,17 @@ export default function AddEventScreen() {
   const handleSave = useCallback(async () => {
     if (!title.trim()) return;
 
+    const dateStr = dateObj.toISOString().split('T')[0];
+    const startTimeStr = startObj.toTimeString().slice(0, 5);
+    const endTimeStr = endObj.toTimeString().slice(0, 5);
+
     if (selectedCalendarId.startsWith('os_')) {
       const osId = selectedCalendarId.replace('os_', '');
       try {
-        const start = new Date(`${date}T${startTime}:00`);
-        const end = new Date(`${date}T${endTime}:00`);
         await Calendar.createEventAsync(osId, {
           title: title.trim(),
-          startDate: isNaN(start.getTime()) ? new Date() : start,
-          endDate: isNaN(end.getTime()) ? new Date() : end,
+          startDate: isNaN(startObj.getTime()) ? new Date() : startObj,
+          endDate: isNaN(endObj.getTime()) ? new Date() : endObj,
           allDay,
           location,
           notes,
@@ -61,9 +64,9 @@ export default function AddEventScreen() {
     addEntry({
       type: 'EVENT',
       title: title.trim(),
-      date,
-      startTime,
-      endTime,
+      date: dateStr,
+      startTime: startTimeStr,
+      endTime: endTimeStr,
       location: location.trim() || undefined,
       allDay,
       repeat,
@@ -73,7 +76,7 @@ export default function AddEventScreen() {
     });
     haptics.success();
     router.back();
-  }, [title, date, startTime, endTime, location, allDay, repeat, notes, colorTag, selectedCalendarId, addEntry, haptics, router]);
+  }, [title, dateObj, startObj, endObj, location, allDay, repeat, notes, colorTag, selectedCalendarId, addEntry, haptics, router]);
 
   const repeatOptions: { value: RepeatRule; label: string }[] = [
     { value: 'NONE', label: 'Never' },
@@ -85,7 +88,8 @@ export default function AddEventScreen() {
 
   return (
     <AnimatedScreen style={{ backgroundColor: colors.background }}>
-      <ScrollView
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top }]}
         showsVerticalScrollIndicator={false}
@@ -111,17 +115,16 @@ export default function AddEventScreen() {
         />
 
         <Text style={[TypeScale.labelMedium, styles.fieldLabel, { color: colors.onSurfaceVariant }]}>DATE</Text>
-        <TextInput
-          style={[styles.input, { backgroundColor: colors.surfaceVariant, color: colors.onSurface }]}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor={colors.onSurfaceVariant}
-          value={date}
-          onChangeText={setDate}
+        <FormDateTimePicker
+          mode="date"
+          value={dateObj}
+          onChange={setDateObj}
+          style={{ marginHorizontal: Spacing.base, marginBottom: Spacing.compact }}
         />
 
         {/* All Day Toggle */}
         <View style={[styles.switchRow, { backgroundColor: colors.surfaceVariant, marginHorizontal: Spacing.base, borderRadius: 12, paddingHorizontal: Spacing.base, paddingVertical: 12, marginBottom: Spacing.compact }]}>
-          <Text style={[TypeScale.bodyLarge, { color: colors.onSurface }]}>All Day</Text>
+          <Text style={[TypeScale.bodyLarge, { color: colors.onSurface, flex: 1 }]} numberOfLines={1}>All Day</Text>
           <Switch
             value={allDay}
             onValueChange={(val) => {
@@ -137,22 +140,20 @@ export default function AddEventScreen() {
           <View style={styles.timeRow}>
             <View style={styles.timeField}>
               <Text style={[TypeScale.labelMedium, styles.fieldLabel, { color: colors.onSurfaceVariant }]}>START</Text>
-              <TextInput
-                style={[styles.input, { backgroundColor: colors.surfaceVariant, color: colors.onSurface, marginHorizontal: 0, marginLeft: Spacing.base, marginRight: Spacing.small }]}
-                placeholder="HH:MM"
-                placeholderTextColor={colors.onSurfaceVariant}
-                value={startTime}
-                onChangeText={setStartTime}
+              <FormDateTimePicker
+                mode="time"
+                value={startObj}
+                onChange={setStartObj}
+                style={{ marginLeft: Spacing.base, marginRight: Spacing.small }}
               />
             </View>
             <View style={styles.timeField}>
               <Text style={[TypeScale.labelMedium, styles.fieldLabel, { color: colors.onSurfaceVariant }]}>END</Text>
-              <TextInput
-                style={[styles.input, { backgroundColor: colors.surfaceVariant, color: colors.onSurface, marginHorizontal: 0, marginRight: Spacing.base, marginLeft: Spacing.small }]}
-                placeholder="HH:MM"
-                placeholderTextColor={colors.onSurfaceVariant}
-                value={endTime}
-                onChangeText={setEndTime}
+              <FormDateTimePicker
+                mode="time"
+                value={endObj}
+                onChange={setEndObj}
+                style={{ marginRight: Spacing.base, marginLeft: Spacing.small }}
               />
             </View>
           </View>
@@ -185,7 +186,7 @@ export default function AddEventScreen() {
                     isActive ? { backgroundColor: colors.primaryContainer } : {},
                   ]}
                 >
-                  <Text style={[TypeScale.labelSmall, { fontSize: 13, color: isActive ? colors.onPrimaryContainer : colors.onSurfaceVariant, fontWeight: isActive ? '600' : '400' }]}>
+                  <Text style={[TypeScale.labelMedium, { color: isActive ? colors.onPrimaryContainer : colors.onSurfaceVariant, fontWeight: '400' }]} numberOfLines={1}>
                     {opt.label}
                   </Text>
                 </HapticButton>
@@ -221,6 +222,7 @@ export default function AddEventScreen() {
           textAlignVertical="top"
         />
       </ScrollView>
+      </KeyboardAvoidingView>
     </AnimatedScreen>
   );
 }
@@ -247,14 +249,17 @@ const styles = StyleSheet.create({
   segmentRow: {
     flexDirection: 'row',
     borderRadius: 12,
-    padding: 3,
-    gap: 6,
+    alignItems: 'center',
+    padding: 4,
+    gap: 4,
+    alignSelf: 'flex-start',
   },
   segmentItem: {
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 10,
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
   },
   colorRow: {
     flexDirection: 'row', paddingHorizontal: Spacing.base, gap: 10, marginBottom: Spacing.compact,

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Modal, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Modal, Pressable, ScrollView } from 'react-native';
 import { useAccountsStore } from '@/src/stores/useAccountsStore';
 import * as Calendar from 'expo-calendar';
 import { useThemeColors } from '@/src/hooks/useThemeColors';
@@ -54,53 +54,54 @@ export function CalendarPicker({ value, onChange }: CalendarPickerProps) {
         <ChevronDown size={20} color={colors.onSurfaceVariant} />
       </HapticButton>
 
-      <Modal visible={visible} transparent animationType="fade" onRequestClose={() => setVisible(false)}>
+      <Modal visible={visible} transparent animationType="slide" onRequestClose={() => setVisible(false)}>
         <Pressable style={styles.modalBackdrop} onPress={() => setVisible(false)} />
-        <View style={styles.modalContainer}>
+        <View style={styles.modalContainer} pointerEvents="box-none">
           <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
             <View style={[styles.handle, { backgroundColor: colors.outlineVariant }]} />
             <Text style={[TypeScale.titleLarge, styles.modalTitle, { color: colors.onSurface }]}>
               Select Calendar
             </Text>
+            <ScrollView showsVerticalScrollIndicator={false} style={{ flexShrink: 1, paddingBottom: Spacing.base }}>
+              <Text style={[TypeScale.labelSmall, { color: colors.onSurfaceVariant, paddingHorizontal: 12, marginTop: 12 }]}>LOCAL ACCOUNTS</Text>
+              {accounts.map((acc) => (
+                <HapticButton
+                  key={acc.id}
+                  onPress={() => {
+                    onChange(acc.id, false);
+                    setVisible(false);
+                  }}
+                  hapticStyle="selection"
+                  style={[styles.optionRow, value === acc.id ? { backgroundColor: `${colors.primary}10` } : {}]}
+                >
+                  <View style={[styles.dot, { backgroundColor: acc.avatarColor }]} />
+                  <Text style={[TypeScale.bodyLarge, { flex: 1, color: colors.onSurface }]}>{acc.displayName}</Text>
+                </HapticButton>
+              ))}
 
-            <Text style={[TypeScale.labelSmall, { color: colors.onSurfaceVariant, paddingHorizontal: 12, marginTop: 12 }]}>LOCAL ACCOUNTS</Text>
-            {accounts.map((acc) => (
-              <HapticButton
-                key={acc.id}
-                onPress={() => {
-                  onChange(acc.id, false);
-                  setVisible(false);
-                }}
-                hapticStyle="selection"
-                style={[styles.optionRow, value === acc.id ? { backgroundColor: `${colors.primary}10` } : {}]}
-              >
-                <View style={[styles.dot, { backgroundColor: acc.avatarColor }]} />
-                <Text style={[TypeScale.bodyLarge, { flex: 1, color: colors.onSurface }]}>{acc.displayName}</Text>
-              </HapticButton>
-            ))}
-
-            {deviceCalendars.length > 0 && (
-              <>
-                <Text style={[TypeScale.labelSmall, { color: colors.onSurfaceVariant, paddingHorizontal: 12, marginTop: 16 }]}>GOOGLE & APPLE CALENDARS</Text>
-                {deviceCalendars.map((cal) => (
-                  <HapticButton
-                    key={cal.id}
-                    onPress={() => {
-                      onChange(`os_${cal.id}`, true, cal);
-                      setVisible(false);
-                    }}
-                    hapticStyle="selection"
-                    style={[styles.optionRow, value === `os_${cal.id}` ? { backgroundColor: `${colors.primary}10` } : {}]}
-                  >
-                    <View style={[styles.dot, { backgroundColor: cal.color }]} />
-                    <View style={{ flex: 1 }}>
-                      <Text style={[TypeScale.bodyMedium, { color: colors.onSurface }]}>{cal.title}</Text>
-                      <Text style={[TypeScale.bodySmall, { color: colors.onSurfaceVariant }]}>{cal.source.name}</Text>
-                    </View>
-                  </HapticButton>
-                ))}
-              </>
-            )}
+              {deviceCalendars.length > 0 && (
+                <>
+                  <Text style={[TypeScale.labelSmall, { color: colors.onSurfaceVariant, paddingHorizontal: 12, marginTop: 16 }]}>GOOGLE & APPLE CALENDARS</Text>
+                  {deviceCalendars.map((cal) => (
+                    <HapticButton
+                      key={cal.id}
+                      onPress={() => {
+                        onChange(`os_${cal.id}`, true, cal);
+                        setVisible(false);
+                      }}
+                      hapticStyle="selection"
+                      style={[styles.optionRow, value === `os_${cal.id}` ? { backgroundColor: `${colors.primary}10` } : {}]}
+                    >
+                      <View style={[styles.dot, { backgroundColor: cal.color }]} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={[TypeScale.bodyMedium, { color: colors.onSurface }]} numberOfLines={1}>{cal.title}</Text>
+                        <Text style={[TypeScale.bodySmall, { color: colors.onSurfaceVariant }]} numberOfLines={1}>{cal.source.name}</Text>
+                      </View>
+                    </HapticButton>
+                  ))}
+                </>
+              )}
+            </ScrollView>
           </View>
         </View>
       </Modal>
@@ -129,10 +130,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.45)',
   },
   modalContainer: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
+    flex: 1,
+    justifyContent: 'flex-end',
   },
   modalSheet: {
     borderTopLeftRadius: 28,
@@ -140,7 +139,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.base,
     paddingBottom: 40,
     paddingTop: Spacing.compact,
-    maxHeight: 500,
+    maxHeight: '85%',
   },
   handle: {
     width: 36,

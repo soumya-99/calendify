@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { StyleSheet, View, ScrollView, Text, TextInput } from 'react-native';
+import { StyleSheet, View, ScrollView, Text, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AnimatedScreen } from '@/src/components/ui/AnimatedScreen';
@@ -15,6 +15,7 @@ import { TypeScale } from '@/src/theme/typography';
 import { Spacing } from '@/src/theme/spacing';
 import { DOT_COLORS, TAG_COLORS } from '@/src/constants/dotColors';
 import { ChevronLeft, RefreshCw } from 'lucide-react-native';
+import { FormDateTimePicker } from '@/src/components/ui/FormDateTimePicker';
 import type { RepeatRule } from '@/src/types/entries';
 
 export default function AddReminderScreen() {
@@ -27,8 +28,8 @@ export default function AddReminderScreen() {
   const selectedDate = useCalendarStore((s) => s.selectedDate);
 
   const [title, setTitle] = useState('');
-  const [date, setDate] = useState(selectedDate);
-  const [time, setTime] = useState('09:00');
+  const [dateObj, setDateObj] = useState(new Date(`${selectedDate}T12:00:00`));
+  const [timeObj, setTimeObj] = useState(new Date(`${selectedDate}T09:00:00`));
   const [repeat, setRepeat] = useState<RepeatRule>('NONE');
   const [notes, setNotes] = useState('');
   const [colorTag, setColorTag] = useState(DOT_COLORS.REMINDER);
@@ -37,16 +38,18 @@ export default function AddReminderScreen() {
   const handleSave = useCallback(async () => {
     if (!title.trim()) return;
 
+    const dateStr = dateObj.toISOString().split('T')[0];
+    const timeStr = timeObj.toTimeString().slice(0, 5);
+
     if (selectedCalendarId.startsWith('os_')) {
       const osId = selectedCalendarId.replace('os_', '');
       try {
-        const start = new Date(`${date}T${time}:00`);
-        const end = new Date(`${date}T${time}:00`);
-        end.setMinutes(end.getMinutes() + 15);
+        const start = timeObj;
+        const end = new Date(timeObj.getTime() + 15 * 60000);
         await Calendar.createEventAsync(osId, {
           title: `[Reminder] ${title.trim()}`,
-          startDate: isNaN(start.getTime()) ? new Date() : start,
-          endDate: isNaN(end.getTime()) ? new Date() : end,
+          startDate: start,
+          endDate: end,
           allDay: false,
           notes,
         });
@@ -58,8 +61,8 @@ export default function AddReminderScreen() {
     addEntry({
       type: 'REMINDER',
       title: title.trim(),
-      date,
-      time,
+      date: dateStr,
+      time: timeStr,
       repeat,
       notified: false,
       notes: notes.trim() || undefined,
@@ -68,7 +71,7 @@ export default function AddReminderScreen() {
     });
     haptics.success();
     router.back();
-  }, [title, date, time, repeat, notes, colorTag, selectedCalendarId, addEntry, haptics, router]);
+  }, [title, dateObj, timeObj, repeat, notes, colorTag, selectedCalendarId, addEntry, haptics, router]);
 
   const repeatOptions: { value: RepeatRule; label: string; icon: string }[] = [
     { value: 'NONE', label: 'Never', icon: '✕' },
@@ -80,7 +83,8 @@ export default function AddReminderScreen() {
 
   return (
     <AnimatedScreen style={{ backgroundColor: colors.background }}>
-      <ScrollView
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top }]}
         showsVerticalScrollIndicator={false}
@@ -106,21 +110,19 @@ export default function AddReminderScreen() {
         />
 
         <Text style={[TypeScale.labelMedium, styles.fieldLabel, { color: colors.onSurfaceVariant }]}>DATE</Text>
-        <TextInput
-          style={[styles.input, { backgroundColor: colors.surfaceVariant, color: colors.onSurface }]}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor={colors.onSurfaceVariant}
-          value={date}
-          onChangeText={setDate}
+        <FormDateTimePicker
+          mode="date"
+          value={dateObj}
+          onChange={setDateObj}
+          style={{ marginHorizontal: Spacing.base, marginBottom: Spacing.compact }}
         />
 
         <Text style={[TypeScale.labelMedium, styles.fieldLabel, { color: colors.onSurfaceVariant }]}>TIME</Text>
-        <TextInput
-          style={[styles.input, { backgroundColor: colors.surfaceVariant, color: colors.onSurface }]}
-          placeholder="HH:MM"
-          placeholderTextColor={colors.onSurfaceVariant}
-          value={time}
-          onChangeText={setTime}
+        <FormDateTimePicker
+          mode="time"
+          value={timeObj}
+          onChange={setTimeObj}
+          style={{ marginHorizontal: Spacing.base, marginBottom: Spacing.compact }}
         />
 
         <Text style={[TypeScale.labelMedium, styles.fieldLabel, { color: colors.onSurfaceVariant }]}>SYNC CALENDAR</Text>
@@ -141,7 +143,7 @@ export default function AddReminderScreen() {
                     isActive ? { backgroundColor: colors.primaryContainer } : {},
                   ]}
                 >
-                  <Text style={[TypeScale.labelSmall, { fontSize: 13, color: isActive ? colors.onPrimaryContainer : colors.onSurfaceVariant, fontWeight: isActive ? '600' : '400' }]}>
+                  <Text style={[TypeScale.labelMedium, { color: isActive ? colors.onPrimaryContainer : colors.onSurfaceVariant, fontWeight: '400' }]} numberOfLines={1}>
                     {opt.label}
                   </Text>
                 </HapticButton>
@@ -177,6 +179,7 @@ export default function AddReminderScreen() {
           textAlignVertical="top"
         />
       </ScrollView>
+      </KeyboardAvoidingView>
     </AnimatedScreen>
   );
 }
@@ -200,14 +203,17 @@ const styles = StyleSheet.create({
   segmentRow: {
     flexDirection: 'row',
     borderRadius: 12,
-    padding: 3,
-    gap: 6,
+    alignItems: 'center',
+    padding: 4,
+    gap: 4,
+    alignSelf: 'flex-start',
   },
   segmentItem: {
     alignItems: 'center',
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 10,
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
   },
   colorRow: {
     flexDirection: 'row', paddingHorizontal: Spacing.base, gap: 10, marginBottom: Spacing.compact,

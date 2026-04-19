@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { StyleSheet, View, ScrollView, Text, TextInput } from 'react-native';
+import { StyleSheet, View, ScrollView, Text, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AnimatedScreen } from '@/src/components/ui/AnimatedScreen';
@@ -15,6 +15,7 @@ import { TypeScale } from '@/src/theme/typography';
 import { Spacing } from '@/src/theme/spacing';
 import { DOT_COLORS, TAG_COLORS } from '@/src/constants/dotColors';
 import { ChevronLeft } from 'lucide-react-native';
+import { FormDateTimePicker } from '@/src/components/ui/FormDateTimePicker';
 import type { Priority } from '@/src/types/entries';
 
 const PRIORITY_STYLES: Record<Priority, { color: string; emoji: string }> = {
@@ -33,7 +34,7 @@ export default function AddTaskScreen() {
   const selectedDate = useCalendarStore((s) => s.selectedDate);
 
   const [title, setTitle] = useState('');
-  const [date, setDate] = useState(selectedDate);
+  const [dateObj, setDateObj] = useState(new Date(`${selectedDate}T12:00:00`));
   const [priority, setPriority] = useState<Priority>('MEDIUM');
   const [notes, setNotes] = useState('');
   const [colorTag, setColorTag] = useState(DOT_COLORS.TASK);
@@ -42,15 +43,15 @@ export default function AddTaskScreen() {
   const handleSave = useCallback(async () => {
     if (!title.trim()) return;
 
+    const dateStr = dateObj.toISOString().split('T')[0];
+
     if (selectedCalendarId.startsWith('os_')) {
       const osId = selectedCalendarId.replace('os_', '');
       try {
-        const start = new Date(`${date}T09:00:00`);
-        const end = new Date(`${date}T10:00:00`);
         await Calendar.createEventAsync(osId, {
           title: `[Task] ${title.trim()}`,
-          startDate: isNaN(start.getTime()) ? new Date() : start,
-          endDate: isNaN(end.getTime()) ? new Date() : end,
+          startDate: dateObj,
+          endDate: dateObj,
           allDay: true,
           notes: `Priority: ${priority}\n\n${notes}`,
         });
@@ -62,7 +63,7 @@ export default function AddTaskScreen() {
     addEntry({
       type: 'TASK',
       title: title.trim(),
-      date,
+      date: dateStr,
       completed: false,
       priority,
       notes: notes.trim() || undefined,
@@ -71,13 +72,14 @@ export default function AddTaskScreen() {
     });
     haptics.success();
     router.back();
-  }, [title, date, priority, notes, colorTag, selectedCalendarId, addEntry, haptics, router]);
+  }, [title, dateObj, priority, notes, colorTag, selectedCalendarId, addEntry, haptics, router]);
 
   const priorities: Priority[] = ['LOW', 'MEDIUM', 'HIGH'];
 
   return (
     <AnimatedScreen style={{ backgroundColor: colors.background }}>
-      <ScrollView
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
         style={styles.scrollView}
         contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top }]}
         showsVerticalScrollIndicator={false}
@@ -103,12 +105,11 @@ export default function AddTaskScreen() {
         />
 
         <Text style={[TypeScale.labelMedium, styles.fieldLabel, { color: colors.onSurfaceVariant }]}>DATE</Text>
-        <TextInput
-          style={[styles.input, { backgroundColor: colors.surfaceVariant, color: colors.onSurface }]}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor={colors.onSurfaceVariant}
-          value={date}
-          onChangeText={setDate}
+        <FormDateTimePicker
+          mode="date"
+          value={dateObj}
+          onChange={setDateObj}
+          style={{ marginHorizontal: Spacing.base, marginBottom: Spacing.compact }}
         />
 
         <Text style={[TypeScale.labelMedium, styles.fieldLabel, { color: colors.onSurfaceVariant }]}>SYNC CALENDAR</Text>
@@ -130,7 +131,7 @@ export default function AddTaskScreen() {
                 ]}
               >
                 <Text style={{ fontSize: 12 }}>{ps.emoji}</Text>
-                <Text style={[TypeScale.labelSmall, { color: isActive ? ps.color : colors.onSurfaceVariant, fontWeight: isActive ? '700' : '400', marginTop: 2 }]}>
+                <Text style={[TypeScale.labelMedium, { color: isActive ? ps.color : colors.onSurfaceVariant, fontWeight: '400', marginTop: 2 }]} numberOfLines={1}>
                   {p}
                 </Text>
               </HapticButton>
@@ -165,6 +166,7 @@ export default function AddTaskScreen() {
           textAlignVertical="top"
         />
       </ScrollView>
+      </KeyboardAvoidingView>
     </AnimatedScreen>
   );
 }
@@ -187,17 +189,18 @@ const styles = StyleSheet.create({
   fieldLabel: { paddingHorizontal: Spacing.base, marginTop: Spacing.base, marginBottom: Spacing.small },
   segmentRow: {
     flexDirection: 'row',
-    marginHorizontal: Spacing.base,
     borderRadius: 12,
+    alignItems: 'center',
     padding: 4,
     gap: 4,
-    marginBottom: Spacing.compact,
+    alignSelf: 'flex-start',
   },
   segmentItem: {
-    flex: 1,
     alignItems: 'center',
-    paddingVertical: 10,
-    borderRadius: 10,
+    justifyContent: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 8,
   },
   colorRow: {
     flexDirection: 'row', paddingHorizontal: Spacing.base, gap: 10, marginBottom: Spacing.compact,

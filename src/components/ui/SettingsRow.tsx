@@ -1,10 +1,10 @@
+import { useThemeColors } from '@/src/hooks/useThemeColors';
+import { Spacing } from '@/src/theme/spacing';
+import { TypeScale } from '@/src/theme/typography';
+import { ChevronRight } from 'lucide-react-native';
 import React from 'react';
 import { StyleSheet, Text, View, ViewStyle } from 'react-native';
 import { HapticButton } from './HapticButton';
-import { useThemeColors } from '@/src/hooks/useThemeColors';
-import { TypeScale } from '@/src/theme/typography';
-import { Spacing } from '@/src/theme/spacing';
-import { ChevronRight } from 'lucide-react-native';
 
 interface SettingsRowProps {
   icon: React.ReactNode;
@@ -20,7 +20,7 @@ export function SettingsRow({ icon, label, value, onPress, style }: SettingsRowP
   const content = (
     <View style={[styles.container, style]}>
       <View style={styles.left}>
-        <View style={[styles.iconContainer, { backgroundColor: colors.surfaceVariant }]}>
+        <View style={[styles.iconContainer, { backgroundColor: colors.surface }]}>
           {icon}
         </View>
         <Text style={[TypeScale.bodyLarge, { color: colors.onSurface }]}>{label}</Text>

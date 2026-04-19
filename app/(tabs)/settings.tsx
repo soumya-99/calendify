@@ -1,3 +1,4 @@
+import { useLoaderStore } from '@/app/_layout';
 import { AnimatedScreen } from '@/src/components/ui/AnimatedScreen';
 import { Avatar } from '@/src/components/ui/Avatar';
 import { Divider } from '@/src/components/ui/Divider';
@@ -34,7 +35,9 @@ import {
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Alert,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -57,7 +60,7 @@ const ICON_COLORS = {
 };
 
 // Make the background a much lighter, less dull version of the color
-const getLightBackground = (colorHex: string) => `${colorHex}2A`;
+const getLightBackground = (colorHex: string) => `${colorHex}15`;
 
 const AccordionItem = ({
   calendars,
@@ -149,6 +152,7 @@ export default function SettingsScreen() {
   const entries = useEventsStore((s) => s.entries);
   const addEntry = useEventsStore((s) => s.addEntry);
   const clearAll = useEventsStore((s) => s.clearAll);
+  const importEntries = useEventsStore((s) => s.importEntries);
 
   const [themePickerVisible, setThemePickerVisible] = useState(false);
   const [colorPickerVisible, setColorPickerVisible] = useState(false);
@@ -255,38 +259,113 @@ export default function SettingsScreen() {
     }
   }, [entries, haptics]);
 
-  const handleExportData = useCallback(async () => {
+  const handleImportFromCalendar = useCallback(async (cal: Calendar.Calendar) => {
     try {
-      const data = JSON.stringify({ accounts, entries });
-      const file = new FileSystem.File(FileSystem.Paths.document, 'calendify_backup.json');
-      file.write(data);
-      await Sharing.shareAsync(file.uri);
-      haptics.success();
+      Alert.alert('Import from OS', `Do you want to fetch and save events from ${cal.title} into local records?`, [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Import',
+          onPress: async () => {
+            useLoaderStore.getState().show?.(); // If loader exists
+            haptics.light();
+            let importCount = 0;
+            const start = new Date();
+            start.setMonth(start.getMonth() - 2);
+            const end = new Date();
+            end.setFullYear(end.getFullYear() + 1);
+            const osEvents = await Calendar.getEventsAsync([cal.id], start, end);
+            for (const ev of osEvents) {
+              const evDate = new Date(ev.startDate);
+              const evEnd = new Date(ev.endDate);
+              addEntry({
+                type: 'EVENT',
+                title: ev.title || 'Untitled Event',
+                date: evDate.toISOString().split('T')[0],
+                startTime: evDate.toTimeString().slice(0, 5),
+                endTime: evEnd.toTimeString().slice(0, 5),
+                location: ev.location,
+                allDay: ev.allDay,
+                notes: ev.notes,
+                colorTag: '#4285F4',
+                accountId: 'local',
+              });
+              importCount++;
+            }
+            useLoaderStore.getState().hide?.();
+            haptics.success();
+            Alert.alert('Import Complete', `Successfully imported ${importCount} events from ${cal.title}.`);
+          }
+        }
+      ]);
     } catch (e) {
-      Alert.alert('Error', 'Failed to export data.');
+      Alert.alert('Error', 'Failed to import from OS calendar');
     }
+  }, [addEntry, haptics]);
+
+  const handleExportData = useCallback(async () => {
+    Alert.alert('Export Data', 'Do you want to export your current accounts and entries?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Export',
+        onPress: async () => {
+          try {
+            const data = JSON.stringify({ accounts, entries });
+            const file = new FileSystem.File(FileSystem.Paths.document, 'calendify_backup.json');
+            file.write(data);
+            await Sharing.shareAsync(file.uri);
+            haptics.success();
+          } catch (e) {
+            Alert.alert('Error', 'Failed to export data.');
+          }
+        }
+      }
+    ]);
   }, [accounts, entries, haptics]);
 
   const handleImportData = useCallback(async () => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({ type: 'application/json' });
-      if (result.canceled) return;
+    Alert.alert('Import Data', 'This will merge imported data into your current records. Proceed?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Import',
+        onPress: async () => {
+          try {
+            const result = await DocumentPicker.getDocumentAsync({ type: 'application/json' });
+            if (result.canceled) return;
 
-      const fileUri = result.assets[0].uri;
-      const file = new FileSystem.File(fileUri);
-      const content = await file.text();
-      const parsed = JSON.parse(content);
+            const fileUri = result.assets[0].uri;
+            const file = new FileSystem.File(fileUri);
+            const content = await file.text();
+            const parsed = JSON.parse(content);
 
-      if (parsed.entries && Array.isArray(parsed.entries)) {
-        clearAll();
-        parsed.entries.forEach((e: any) => addEntry(e));
-        haptics.success();
-        Alert.alert('Import Complete', `Imported ${parsed.entries.length} entries.`);
+            if (parsed.entries && Array.isArray(parsed.entries)) {
+              importEntries(parsed.entries);
+            }
+            if (parsed.accounts && Array.isArray(parsed.accounts)) {
+              parsed.accounts.forEach((acc: any) => addAccount(acc.email, acc.displayName));
+            }
+            haptics.success();
+            Alert.alert('Success', 'Data imported successfully.');
+          } catch (e) {
+            Alert.alert('Error', 'Invalid file or failed to import.');
+          }
+        }
       }
-    } catch (e) {
-      Alert.alert('Error', 'Invalid backup file.');
-    }
-  }, [clearAll, addEntry, haptics]);
+    ]);
+  }, [importEntries, addAccount, haptics]);
+
+  const handleClearData = useCallback(() => {
+    Alert.alert('Clear Data', 'Are you sure you want to clear all local entries?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Clear',
+        style: 'destructive',
+        onPress: () => {
+          clearAll();
+          haptics.heavy();
+        }
+      }
+    ]);
+  }, [clearAll, haptics]);
 
   const SettingsIcon = ({ icon: Icon, color }: { icon: typeof Sun; color: string }) => (
     <View style={[styles.iconBg, { backgroundColor: getLightBackground(color) }]}>
@@ -305,12 +384,16 @@ export default function SettingsScreen() {
           Settings
         </Text>
 
-        {/* DEVICE CALENDARS */}
+        {/* DEVICE CALENDARS - EXPORT */}
         {uniqueCalendars.length > 0 && (
           <>
-            <SectionHeader title="GOOGLE & APPLE CALENDARS" />
+            <SectionHeader title="EXPORT LOCAL TO OS CALENDAR" />
             <View style={[styles.card, { backgroundColor: colors.surface }]}>
               <AccordionItem calendars={uniqueCalendars} onSync={handleSyncCalendar} />
+            </View>
+            <SectionHeader title="IMPORT FROM OS CALENDAR" />
+            <View style={[styles.card, { backgroundColor: colors.surface }]}>
+              <AccordionItem calendars={uniqueCalendars} onSync={handleImportFromCalendar} />
             </View>
           </>
         )}
@@ -344,13 +427,15 @@ export default function SettingsScreen() {
                     <Text style={[TypeScale.labelSmall, { color: colors.primary }]}>Default</Text>
                   </View>
                 )}
-                <HapticButton
-                  onPress={() => handleDeleteAccount(account.id, account.email)}
-                  hapticStyle="medium"
-                  style={styles.deleteBtn}
-                >
-                  <Trash2 size={16} color={colors.error} strokeWidth={1.75} />
-                </HapticButton>
+                {accounts.length > 1 && (
+                  <HapticButton
+                    onPress={() => handleDeleteAccount(account.id, account.email)}
+                    hapticStyle="medium"
+                    style={styles.deleteBtn}
+                  >
+                    <Trash2 size={16} color={colors.error} strokeWidth={1.75} />
+                  </HapticButton>
+                )}
               </HapticButton>
             </View>
           ))}
@@ -362,7 +447,7 @@ export default function SettingsScreen() {
             <View style={[styles.iconBg, { backgroundColor: getLightBackground(colors.primary) }]}>
               <Plus size={18} color={colors.primary} strokeWidth={2} />
             </View>
-            <Text style={[TypeScale.labelLarge, { color: colors.primary }]}>
+            <Text style={[TypeScale.labelLarge, { color: colors.primary, flex: 1 }]} numberOfLines={1}>
               Add account
             </Text>
           </HapticButton>
@@ -386,12 +471,11 @@ export default function SettingsScreen() {
           />
         </View>
 
-        {/* DATA */}
-        <SectionHeader title="DATA" />
+        <SectionHeader title="DATA MANAGEMENT" />
         <View style={[styles.card, { backgroundColor: colors.surface }]}>
           <SettingsRow
             icon={<SettingsIcon icon={Upload} color={ICON_COLORS.exportCalendify} />}
-            label="Export all data"
+            label="Export data"
             value="Backup"
             onPress={handleExportData}
           />
@@ -401,6 +485,13 @@ export default function SettingsScreen() {
             label="Import data"
             value="Restore"
             onPress={handleImportData}
+          />
+          <Divider inset />
+          <SettingsRow
+            icon={<SettingsIcon icon={Trash2} color={colors.error} />}
+            label="Clear all data"
+            value="Delete"
+            onPress={handleClearData}
           />
         </View>
 
@@ -511,7 +602,7 @@ export default function SettingsScreen() {
         <Pressable style={styles.modalBackdrop} onPress={() => setAddAccountVisible(false)}>
           <View />
         </Pressable>
-        <View style={styles.modalContainer}>
+        <KeyboardAvoidingView style={styles.modalContainer} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
           <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
             <View style={[styles.handle, { backgroundColor: colors.outlineVariant }]} />
             <Text style={[TypeScale.titleLarge, styles.modalTitle, { color: colors.onSurface }]}>
@@ -541,7 +632,7 @@ export default function SettingsScreen() {
               <Text style={[TypeScale.labelLarge, { color: colors.onPrimary }]}>Add Account</Text>
             </HapticButton>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </AnimatedScreen>
   );
