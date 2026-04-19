@@ -1,20 +1,20 @@
+import { useCalendarData } from '@/src/hooks/useCalendarData';
+import { useCalendarStore } from '@/src/stores/useCalendarStore';
+import { Springs } from '@/src/theme/motion';
+import { Spacing } from '@/src/theme/spacing';
 import React, { useCallback } from 'react';
 import { StyleSheet, View } from 'react-native';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  useReducedMotion,
-  runOnJS,
-} from 'react-native-reanimated';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
+import Animated, {
+  runOnJS,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withSpring,
+} from 'react-native-reanimated';
+import { CalendarDay } from './CalendarDay';
 import { CalendarHeader } from './CalendarHeader';
 import { WeekDayLabels } from './WeekDayLabels';
-import { CalendarDay } from './CalendarDay';
-import { useCalendarStore } from '@/src/stores/useCalendarStore';
-import { useCalendarData } from '@/src/hooks/useCalendarData';
-import { Spacing } from '@/src/theme/spacing';
-import { Springs } from '@/src/theme/motion';
 
 export function CalendarGrid() {
   const currentMonth = useCalendarStore((s) => s.currentMonth);
@@ -23,6 +23,13 @@ export function CalendarGrid() {
   const goToPrevMonth = useCalendarStore((s) => s.goToPrevMonth);
   const goToNextMonth = useCalendarStore((s) => s.goToNextMonth);
   const goToToday = useCalendarStore((s) => s.goToToday);
+
+  const setMonth = useCalendarStore((s) => s.setMonth);
+
+  const handleJumpToDate = useCallback((dateStr: string, month: number, year: number) => {
+    setMonth(month, year);
+    setSelectedDate(dateStr);
+  }, [setMonth, setSelectedDate]);
 
   const { weeks, dotColorsByDate } = useCalendarData();
 
@@ -78,6 +85,7 @@ export function CalendarGrid() {
         onPrev={goToPrevMonth}
         onNext={goToNextMonth}
         onTitlePress={goToToday}
+        onJumpToDate={handleJumpToDate}
       />
       <WeekDayLabels />
       <GestureDetector gesture={panGesture}>

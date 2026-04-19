@@ -1,38 +1,79 @@
-import React, { useMemo } from 'react';
-import { StyleSheet, View, ScrollView, Text } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { AnimatedScreen } from '@/src/components/ui/AnimatedScreen';
 import { CalendarGrid } from '@/src/components/calendar/CalendarGrid';
+import { BirthdayCard } from '@/src/components/cards/BirthdayCard';
 import { EventCard } from '@/src/components/cards/EventCard';
 import { ReminderCard } from '@/src/components/cards/ReminderCard';
 import { TaskCard } from '@/src/components/cards/TaskCard';
-import { BirthdayCard } from '@/src/components/cards/BirthdayCard';
-import { SectionHeader } from '@/src/components/ui/SectionHeader';
-import { EmptyState } from '@/src/components/ui/EmptyState';
+import { AnimatedScreen } from '@/src/components/ui/AnimatedScreen';
 import { Divider } from '@/src/components/ui/Divider';
+import { EmptyState } from '@/src/components/ui/EmptyState';
 import { HapticButton } from '@/src/components/ui/HapticButton';
-import { useCalendarStore } from '@/src/stores/useCalendarStore';
+import { SectionHeader } from '@/src/components/ui/SectionHeader';
+import { DOT_COLORS } from '@/src/constants/dotColors';
 import { useCalendarData } from '@/src/hooks/useCalendarData';
 import { useThemeColors } from '@/src/hooks/useThemeColors';
-import { TypeScale } from '@/src/theme/typography';
+import { useCalendarStore } from '@/src/stores/useCalendarStore';
 import { Spacing } from '@/src/theme/spacing';
-import { DOT_COLORS } from '@/src/constants/dotColors';
-import { getDayName, formatDateDisplay } from '@/src/utils/dateHelpers';
-import { CalendarDays, Eye } from 'lucide-react-native';
+import { TypeScale } from '@/src/theme/typography';
 import type {
+  Birthday,
   CalendarEvent,
   Reminder,
   Task,
-  Birthday,
 } from '@/src/types/entries';
+import { formatDateDisplay, getDayName } from '@/src/utils/dateHelpers';
+import { useRouter } from 'expo-router';
+import { CalendarDays, Eye } from 'lucide-react-native';
+import React, { useEffect, useMemo } from 'react';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const today = new Date();
+const TODAY_MONTH = today.getMonth();
+const TODAY_YEAR = today.getFullYear();
+const TODAY_DAY = String(today.getDate());
 
 export default function HomeScreen() {
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const selectedDate = useCalendarStore((s) => s.selectedDate);
+  const currentMonth = useCalendarStore((s) => s.currentMonth);
+  const currentYear = useCalendarStore((s) => s.currentYear);
+  const goToToday = useCalendarStore((s) => s.goToToday);
   const { selectedDateEntries } = useCalendarData();
+
+  const isCurrentMonth = currentMonth === TODAY_MONTH && currentYear === TODAY_YEAR;
+
+  const fabScale = useSharedValue(isCurrentMonth ? 0.8 : 1);
+  const fabOpacity = useSharedValue(isCurrentMonth ? 0 : 1);
+  const fabTranslateY = useSharedValue(isCurrentMonth ? 20 : 0);
+
+  useEffect(() => {
+    const config = {
+      duration: 300,
+      easing: Easing.bezier(0.4, 0, 0.2, 1),
+    };
+
+    if (isCurrentMonth) {
+      fabScale.value = withTiming(0.8, config);
+      fabOpacity.value = withTiming(0, config);
+      fabTranslateY.value = withTiming(20, config);
+    } else {
+      fabScale.value = withTiming(1, config);
+      fabOpacity.value = withTiming(1, config);
+      fabTranslateY.value = withTiming(0, config);
+    }
+  }, [isCurrentMonth]);
+
+  const fabStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: fabScale.value },
+      { translateY: fabTranslateY.value }
+    ],
+    opacity: fabOpacity.value,
+    pointerEvents: fabOpacity.value > 0.1 ? 'auto' : 'none',
+  }));
 
   const events = useMemo(
     () => selectedDateEntries.filter((e): e is CalendarEvent => e.type === 'EVENT'),
@@ -147,6 +188,19 @@ export default function HomeScreen() {
 
         <View style={styles.bottomSpacer} />
       </ScrollView>
+
+      {/* Today FAB — only visible when not in current month */}
+      <Animated.View style={[styles.fab, { bottom: insets.bottom }, fabStyle]}>
+        <HapticButton
+          onPress={goToToday}
+          hapticStyle="medium"
+          style={[styles.fabButton, { backgroundColor: colors.primary }]}
+          accessibilityLabel="Jump to today"
+        >
+          <Text style={[TypeScale.labelLarge, { color: colors.onPrimary }]}>{TODAY_DAY}</Text>
+          <CalendarDays size={14} color={colors.onPrimary} strokeWidth={2} style={{ marginLeft: 4 }} />
+        </HapticButton>
+      </Animated.View>
     </AnimatedScreen>
   );
 }
@@ -182,5 +236,16 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 20,
+  },
+  fab: {
+    position: 'absolute',
+    right: Spacing.base,
+  },
+  fabButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
   },
 });

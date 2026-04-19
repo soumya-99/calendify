@@ -21,10 +21,14 @@ import {
   parseEncryptedBackup,
 } from '@/src/utils/encryptedBackup';
 import * as Calendar from 'expo-calendar';
+import Constants from 'expo-constants';
+import * as Contacts from 'expo-contacts';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import {
+  ArrowDownToLine,
+  ArrowUpFromLine,
   CheckCircle2,
   ChevronDown,
   Download,
@@ -32,12 +36,12 @@ import {
   Moon,
   Palette,
   Plus,
-  RefreshCw,
   Shield,
   Smartphone,
   Sun,
   Trash2,
-  Upload
+  Upload,
+  Users
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -82,10 +86,10 @@ const getLightBackground = (colorHex: string) => `${colorHex}15`;
 
 const AccordionItem = ({
   calendars,
-  onSync
+  onPress,
 }: {
-  calendars: Calendar.Calendar[],
-  onSync: (cal: Calendar.Calendar) => void
+  calendars: Calendar.Calendar[];
+  onPress: (cal: Calendar.Calendar) => void;
 }) => {
   const colors = useThemeColors();
   const haptics = useHaptics();
@@ -99,7 +103,7 @@ const AccordionItem = ({
   };
 
   const chevronStyle = useAnimatedStyle(() => ({
-    transform: [{ rotate: `${interpolate(progress.value, [0, 1], [0, 180])}deg` }]
+    transform: [{ rotate: `${interpolate(progress.value, [0, 1], [0, 180])}deg` }],
   }));
 
   const heightStyle = useAnimatedStyle(() => ({
@@ -110,13 +114,13 @@ const AccordionItem = ({
   if (calendars.length === 1) {
     const cal = calendars[0];
     return (
-      <HapticButton onPress={() => onSync(cal)} style={styles.calendarRow}>
-        <View style={[styles.colorSwatch, { backgroundColor: cal.color, width: 14, height: 14, borderRadius: 7 }]} />
+      <HapticButton onPress={() => onPress(cal)} style={styles.calendarRow}>
+        <View style={[styles.calDot, { backgroundColor: cal.color || '#8E8E93' }]} />
         <View style={styles.accountInfo}>
           <Text style={[TypeScale.bodyLarge, { color: colors.onSurface }]}>{cal.title}</Text>
           <Text style={[TypeScale.bodySmall, { color: colors.onSurfaceVariant }]}>{cal.source.name}</Text>
         </View>
-        <RefreshCw size={20} color={colors.primary} strokeWidth={1.5} />
+        <ChevronDown size={18} color={colors.onSurfaceVariant} strokeWidth={1.5} style={{ transform: [{ rotate: '-90deg' }] }} />
       </HapticButton>
     );
   }
@@ -124,26 +128,26 @@ const AccordionItem = ({
   return (
     <View>
       <HapticButton onPress={toggle} style={styles.calendarRow}>
-        <View style={[styles.colorSwatch, { backgroundColor: '#8E8E93', width: 14, height: 14, borderRadius: 7 }]} />
+        <View style={[styles.calDot, { backgroundColor: '#8E8E93' }]} />
         <View style={styles.accountInfo}>
-          <Text style={[TypeScale.bodyLarge, { color: colors.onSurface }]}>Multiple Calendars</Text>
-          <Text style={[TypeScale.bodySmall, { color: colors.onSurfaceVariant }]}>{calendars.length} accounts found</Text>
+          <Text style={[TypeScale.bodyLarge, { color: colors.onSurface }]}>Device Calendars</Text>
+          <Text style={[TypeScale.bodySmall, { color: colors.onSurfaceVariant }]}>{calendars.length} calendars found</Text>
         </View>
         <Animated.View style={chevronStyle}>
           <ChevronDown size={20} color={colors.onSurfaceVariant} strokeWidth={1.5} />
         </Animated.View>
       </HapticButton>
       <Animated.View style={[{ overflow: 'hidden' }, heightStyle]}>
-        {calendars.map((cal, idx) => (
+        {calendars.map((cal) => (
           <View key={cal.id}>
             <Divider inset />
-            <HapticButton onPress={() => onSync(cal)} style={[styles.calendarRow, { paddingLeft: Spacing.hero }]}>
-              <View style={[styles.colorSwatch, { backgroundColor: cal.color, width: 14, height: 14, borderRadius: 7 }]} />
+            <HapticButton onPress={() => onPress(cal)} style={styles.calendarRow}>
+              <View style={[styles.calDot, { backgroundColor: cal.color || colors.primary }]} />
               <View style={styles.accountInfo}>
                 <Text style={[TypeScale.bodyLarge, { color: colors.onSurface }]}>{cal.title}</Text>
                 <Text style={[TypeScale.bodySmall, { color: colors.onSurfaceVariant }]}>{cal.source.name}</Text>
               </View>
-              <RefreshCw size={20} color={colors.primary} strokeWidth={1.5} />
+              <ChevronDown size={18} color={colors.onSurfaceVariant} strokeWidth={1.5} style={{ transform: [{ rotate: '-90deg' }] }} />
             </HapticButton>
           </View>
         ))}
@@ -178,6 +182,17 @@ export default function SettingsScreen() {
   const [addAccountVisible, setAddAccountVisible] = useState(false);
   const [newEmail, setNewEmail] = useState('');
   const [newName, setNewName] = useState('');
+
+  // Calendar action bottom sheet state
+  const [calActionSheet, setCalActionSheet] = useState<{ visible: boolean; cal: Calendar.Calendar | null }>({
+    visible: false,
+    cal: null,
+  });
+
+  const openCalActionSheet = (cal: Calendar.Calendar) => {
+    setCalActionSheet({ visible: true, cal });
+  };
+  const closeCalActionSheet = () => setCalActionSheet({ visible: false, cal: null });
 
   const [deviceCalendars, setDeviceCalendars] = useState<Calendar.Calendar[]>([]);
 
@@ -254,7 +269,7 @@ export default function SettingsScreen() {
 
   const handleSyncCalendar = useCallback(async (cal: Calendar.Calendar) => {
     try {
-      Alert.alert('Sync Local to OS', `Do you want to save all your local events to ${cal.title}?`, [
+      Alert.alert('Sync Local to Calendar', `Do you want to save all your local events to ${cal.title}?`, [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Sync',
@@ -290,12 +305,12 @@ export default function SettingsScreen() {
 
   const handleImportFromCalendar = useCallback(async (cal: Calendar.Calendar) => {
     try {
-      Alert.alert('Import from OS', `Do you want to fetch and save events from ${cal.title} into local records?`, [
+      Alert.alert('Import from Device', `Fetch and save events from ${cal.title} into local records?`, [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Import',
           onPress: async () => {
-            useLoaderStore.getState().show?.(); // If loader exists
+            useLoaderStore.getState().show?.();
             haptics.light();
             let importCount = 0;
             const start = new Date();
@@ -330,6 +345,58 @@ export default function SettingsScreen() {
       Alert.alert('Error', 'Failed to import from Device calendar');
     }
   }, [addEntry, haptics]);
+
+  const handleImportBirthdays = useCallback(async () => {
+    try {
+      const { status } = await Contacts.requestPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permission Denied', 'Contacts access is required to import birthdays.');
+        return;
+      }
+      const { data } = await Contacts.getContactsAsync({
+        fields: [Contacts.Fields.Name, Contacts.Fields.Birthday],
+      });
+      const contactsWithBirthdays = data.filter((c) => c.birthday);
+      if (contactsWithBirthdays.length === 0) {
+        Alert.alert('No Birthdays Found', 'None of your contacts have a birthday saved.');
+        return;
+      }
+      Alert.alert(
+        'Import Birthdays',
+        `Found ${contactsWithBirthdays.length} contacts with birthdays. Import them?`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Import',
+            onPress: () => {
+              const defaultAccount = accounts.find((a) => a.isDefault);
+              let count = 0;
+              for (const contact of contactsWithBirthdays) {
+                const bday = contact.birthday!;
+                if (!bday.month || !bday.day) continue;
+                const year = bday.year ?? new Date().getFullYear();
+                const month = String(bday.month).padStart(2, '0');
+                const day = String(bday.day).padStart(2, '0');
+                const dateStr = `${year}-${month}-${day}`;
+                addEntry({
+                  type: 'BIRTHDAY',
+                  title: contact.name || 'Unknown',
+                  personName: contact.name || 'Unknown',
+                  date: dateStr,
+                  accountId: defaultAccount?.id ?? 'local',
+                });
+                count++;
+              }
+              haptics.success();
+              Alert.alert('Done', `Imported ${count} birthdays to your default account.`);
+            },
+          },
+        ]
+      );
+    } catch {
+      Alert.alert('Error', 'Failed to access contacts.');
+    }
+  }, [accounts, addEntry, haptics]);
 
   const handleExportData = useCallback(async () => {
     Alert.alert('Export Data', 'Do you want to export your current accounts and entries?', [
@@ -417,19 +484,26 @@ export default function SettingsScreen() {
           Settings
         </Text>
 
-        {/* DEVICE CALENDARS - EXPORT */}
+        {/* DEVICE CALENDARS */}
         {uniqueCalendars.length > 0 && (
           <>
-            <SectionHeader title="EXPORT TO CALENDAR" />
+            <SectionHeader title="DEVICE CALENDARS" />
             <View style={[styles.card, { backgroundColor: colors.surface }]}>
-              <AccordionItem calendars={uniqueCalendars} onSync={handleSyncCalendar} />
-            </View>
-            <SectionHeader title="IMPORT FROM CALENDAR" />
-            <View style={[styles.card, { backgroundColor: colors.surface }]}>
-              <AccordionItem calendars={uniqueCalendars} onSync={handleImportFromCalendar} />
+              <AccordionItem calendars={uniqueCalendars} onPress={openCalActionSheet} />
             </View>
           </>
         )}
+
+        {/* CONTACTS */}
+        <SectionHeader title="CONTACTS" />
+        <View style={[styles.card, { backgroundColor: colors.surface }]}>
+          <SettingsRow
+            icon={<SettingsIcon icon={Users} color="#F06292" />}
+            label="Import Birthdays"
+            value="From Contacts"
+            onPress={handleImportBirthdays}
+          />
+        </View>
 
         {/* ACCOUNTS */}
         <SectionHeader title="LOCAL ACCOUNTS" />
@@ -537,13 +611,13 @@ export default function SettingsScreen() {
           <SettingsRow
             icon={<SettingsIcon icon={Info} color={ICON_COLORS.version} />}
             label="Version"
-            value="1.0.0"
+            value={Constants.expoConfig?.version || '1.0.0'}
           />
           <Divider inset />
           <SettingsRow
             icon={<SettingsIcon icon={Shield} color={ICON_COLORS.privacy} />}
             label="Privacy"
-            value="All data stored locally"
+            value="Data stored locally"
           />
         </View>
 
@@ -680,6 +754,67 @@ export default function SettingsScreen() {
           </KeyboardAwareScrollView>
         </KeyboardAvoidingView>
       </Modal>
+
+      {/* Calendar Action Bottom Sheet */}
+      <Modal
+        visible={calActionSheet.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={closeCalActionSheet}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={closeCalActionSheet}>
+          <View />
+        </Pressable>
+        <View style={styles.modalContainer}>
+          <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
+            <View style={[styles.handle, { backgroundColor: colors.outlineVariant }]} />
+            <Text style={[TypeScale.titleLarge, styles.modalTitle, { color: colors.onSurface }]}>
+              {calActionSheet.cal?.title ?? 'Calendar'}
+            </Text>
+            <Text style={[TypeScale.bodySmall, { color: colors.onSurfaceVariant, paddingHorizontal: Spacing.small, marginBottom: Spacing.base }]}>
+              {calActionSheet.cal?.source.name}
+            </Text>
+            <View style={[styles.optionsList, { backgroundColor: colors.background }]}>
+              {/* Export */}
+              <HapticButton
+                hapticStyle="medium"
+                onPress={() => {
+                  closeCalActionSheet();
+                  if (calActionSheet.cal) handleSyncCalendar(calActionSheet.cal);
+                }}
+                style={[styles.calActionRow, { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: `${colors.outlineVariant}60` }]}
+              >
+                <View style={[styles.calActionIcon, { backgroundColor: `${ICON_COLORS.exportCalendify}18` }]}>
+                  <ArrowUpFromLine size={22} color={ICON_COLORS.exportCalendify} strokeWidth={1.75} />
+                </View>
+                <View style={styles.calActionText}>
+                  <Text style={[TypeScale.titleSmall, { color: colors.onSurface }]}>Export to Calendar</Text>
+                  <Text style={[TypeScale.bodySmall, { color: colors.onSurfaceVariant }]}>Push your local events to this calendar</Text>
+                </View>
+                <ChevronDown size={18} color={colors.onSurfaceVariant} strokeWidth={1.5} style={{ transform: [{ rotate: '-90deg' }] }} />
+              </HapticButton>
+              {/* Import */}
+              <HapticButton
+                hapticStyle="medium"
+                onPress={() => {
+                  closeCalActionSheet();
+                  if (calActionSheet.cal) handleImportFromCalendar(calActionSheet.cal);
+                }}
+                style={styles.calActionRow}
+              >
+                <View style={[styles.calActionIcon, { backgroundColor: `${ICON_COLORS.importCalendify}18` }]}>
+                  <ArrowDownToLine size={22} color={ICON_COLORS.importCalendify} strokeWidth={1.75} />
+                </View>
+                <View style={styles.calActionText}>
+                  <Text style={[TypeScale.titleSmall, { color: colors.onSurface }]}>Import from Calendar</Text>
+                  <Text style={[TypeScale.bodySmall, { color: colors.onSurfaceVariant }]}>Fetch events from this calendar</Text>
+                </View>
+                <ChevronDown size={18} color={colors.onSurfaceVariant} strokeWidth={1.5} style={{ transform: [{ rotate: '-90deg' }] }} />
+              </HapticButton>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </AnimatedScreen>
   );
 }
@@ -796,5 +931,32 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 9999,
     marginTop: Spacing.small,
+  },
+  calDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+  },
+  optionsList: {
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  calActionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: Spacing.small,
+    gap: Spacing.compact,
+  },
+  calActionIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  calActionText: {
+    flex: 1,
+    gap: 2,
   },
 });
