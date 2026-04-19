@@ -1,0 +1,659 @@
+import { AnimatedScreen } from '@/src/components/ui/AnimatedScreen';
+import { Avatar } from '@/src/components/ui/Avatar';
+import { Divider } from '@/src/components/ui/Divider';
+import { HapticButton } from '@/src/components/ui/HapticButton';
+import { SectionHeader } from '@/src/components/ui/SectionHeader';
+import { SettingsRow } from '@/src/components/ui/SettingsRow';
+import { useHaptics } from '@/src/hooks/useHaptics';
+import { useThemeColors } from '@/src/hooks/useThemeColors';
+import { useAccountsStore } from '@/src/stores/useAccountsStore';
+import { useEventsStore } from '@/src/stores/useEventsStore';
+import { useThemeStore } from '@/src/stores/useThemeStore';
+import { Spacing } from '@/src/theme/spacing';
+import { TypeScale } from '@/src/theme/typography';
+import type { ColorSchemeChoice, ThemeMode } from '@/src/types/theme';
+import * as Calendar from 'expo-calendar';
+import * as DocumentPicker from 'expo-document-picker';
+import * as FileSystem from 'expo-file-system';
+import * as Sharing from 'expo-sharing';
+import {
+  CheckCircle2,
+  ChevronDown,
+  Download,
+  Info,
+  Moon,
+  Palette,
+  Plus,
+  RefreshCw,
+  Shield,
+  Smartphone,
+  Sun,
+  Trash2,
+  Upload
+} from 'lucide-react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  Alert,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import Animated, { Easing, interpolate, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const ICON_COLORS = {
+  theme: '#5C6BC0',
+  palette: '#AB47BC',
+  exportCalendify: '#26A69A',
+  importCalendify: '#42A5F5',
+  exportIcs: '#66BB6A',
+  importIcs: '#FFA726',
+  version: '#78909C',
+  privacy: '#EF5350',
+};
+
+// Make the background a much lighter, less dull version of the color
+const getLightBackground = (colorHex: string) => `${colorHex}2A`;
+
+const AccordionItem = ({
+  calendars,
+  onSync
+}: {
+  calendars: Calendar.Calendar[],
+  onSync: (cal: Calendar.Calendar) => void
+}) => {
+  const colors = useThemeColors();
+  const haptics = useHaptics();
+  const [expanded, setExpanded] = useState(false);
+  const progress = useSharedValue(0);
+
+  const toggle = () => {
+    haptics.selection();
+    setExpanded(!expanded);
+    progress.value = withTiming(!expanded ? 1 : 0, { duration: 250, easing: Easing.inOut(Easing.ease) });
+  };
+
+  const chevronStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${interpolate(progress.value, [0, 1], [0, 180])}deg` }]
+  }));
+
+  const heightStyle = useAnimatedStyle(() => ({
+    maxHeight: interpolate(progress.value, [0, 1], [0, calendars.length * 70]),
+    opacity: progress.value,
+  }));
+
+  if (calendars.length === 1) {
+    const cal = calendars[0];
+    return (
+      <HapticButton onPress={() => onSync(cal)} style={styles.calendarRow}>
+        <View style={[styles.colorSwatch, { backgroundColor: cal.color, width: 14, height: 14, borderRadius: 7 }]} />
+        <View style={styles.accountInfo}>
+          <Text style={[TypeScale.bodyLarge, { color: colors.onSurface }]}>{cal.title}</Text>
+          <Text style={[TypeScale.bodySmall, { color: colors.onSurfaceVariant }]}>{cal.source.name}</Text>
+        </View>
+        <RefreshCw size={20} color={colors.primary} strokeWidth={1.5} />
+      </HapticButton>
+    );
+  }
+
+  return (
+    <View>
+      <HapticButton onPress={toggle} style={styles.calendarRow}>
+        <View style={[styles.colorSwatch, { backgroundColor: '#8E8E93', width: 14, height: 14, borderRadius: 7 }]} />
+        <View style={styles.accountInfo}>
+          <Text style={[TypeScale.bodyLarge, { color: colors.onSurface }]}>Multiple Calendars</Text>
+          <Text style={[TypeScale.bodySmall, { color: colors.onSurfaceVariant }]}>{calendars.length} accounts found</Text>
+        </View>
+        <Animated.View style={chevronStyle}>
+          <ChevronDown size={20} color={colors.onSurfaceVariant} strokeWidth={1.5} />
+        </Animated.View>
+      </HapticButton>
+      <Animated.View style={[{ overflow: 'hidden' }, heightStyle]}>
+        {calendars.map((cal, idx) => (
+          <View key={cal.id}>
+            <Divider inset />
+            <HapticButton onPress={() => onSync(cal)} style={[styles.calendarRow, { paddingLeft: Spacing.hero }]}>
+              <View style={[styles.colorSwatch, { backgroundColor: cal.color, width: 14, height: 14, borderRadius: 7 }]} />
+              <View style={styles.accountInfo}>
+                <Text style={[TypeScale.bodyLarge, { color: colors.onSurface }]}>{cal.title}</Text>
+                <Text style={[TypeScale.bodySmall, { color: colors.onSurfaceVariant }]}>{cal.source.name}</Text>
+              </View>
+              <RefreshCw size={20} color={colors.primary} strokeWidth={1.5} />
+            </HapticButton>
+          </View>
+        ))}
+      </Animated.View>
+    </View>
+  );
+};
+
+
+export default function SettingsScreen() {
+  const colors = useThemeColors();
+  const insets = useSafeAreaInsets();
+  const haptics = useHaptics();
+
+  const themeMode = useThemeStore((s) => s.themeMode);
+  const colorScheme = useThemeStore((s) => s.colorScheme);
+  const setThemeMode = useThemeStore((s) => s.setThemeMode);
+  const setColorScheme = useThemeStore((s) => s.setColorScheme);
+
+  const accounts = useAccountsStore((s) => s.accounts);
+  const addAccount = useAccountsStore((s) => s.addAccount);
+  const deleteAccount = useAccountsStore((s) => s.deleteAccount);
+  const setDefault = useAccountsStore((s) => s.setDefault);
+  const entries = useEventsStore((s) => s.entries);
+  const addEntry = useEventsStore((s) => s.addEntry);
+  const clearAll = useEventsStore((s) => s.clearAll);
+
+  const [themePickerVisible, setThemePickerVisible] = useState(false);
+  const [colorPickerVisible, setColorPickerVisible] = useState(false);
+  const [addAccountVisible, setAddAccountVisible] = useState(false);
+  const [newEmail, setNewEmail] = useState('');
+  const [newName, setNewName] = useState('');
+
+  const [deviceCalendars, setDeviceCalendars] = useState<Calendar.Calendar[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      const { status } = await Calendar.requestCalendarPermissionsAsync();
+      if (status === 'granted') {
+        const calendars = await Calendar.getCalendarsAsync(Calendar.EntityTypes.EVENT);
+        // Only get primary user calendars that can be modified
+        const userCalendars = calendars.filter((c) => c.allowsModifications);
+        setDeviceCalendars(userCalendars);
+      }
+    })();
+  }, []);
+
+  const uniqueCalendars = useMemo(() => {
+    const seen = new Set<string>();
+    return deviceCalendars.filter((cal) => {
+      // Dedup by source name (email)
+      const key = cal.source.name;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [deviceCalendars]);
+
+  const themeLabels: Record<ThemeMode, string> = {
+    system: 'System',
+    light: 'Light',
+    dark: 'Dark',
+  };
+
+  const colorLabels: Record<ColorSchemeChoice, string> = {
+    default: 'Default (Teal)',
+    blue: 'Blue',
+  };
+
+  const handleAddAccount = useCallback(() => {
+    if (newEmail.trim() && newName.trim()) {
+      addAccount(newEmail.trim(), newName.trim());
+      haptics.success();
+      setNewEmail('');
+      setNewName('');
+      setAddAccountVisible(false);
+    }
+  }, [newEmail, newName, addAccount, haptics]);
+
+  const handleDeleteAccount = useCallback(
+    (id: string, email: string) => {
+      Alert.alert('Delete Account', `Delete "${email}"? Entries will remain.`, [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => {
+            haptics.warning();
+            deleteAccount(id);
+          },
+        },
+      ]);
+    },
+    [deleteAccount, haptics]
+  );
+
+  const handleSyncCalendar = useCallback(async (cal: Calendar.Calendar) => {
+    try {
+      Alert.alert('Sync Local to OS', `Do you want to save all your local events to ${cal.title}?`, [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Sync',
+          onPress: async () => {
+            haptics.light();
+            let syncCount = 0;
+            for (const entry of entries) {
+              if (entry.type === 'EVENT') {
+                const startDate = new Date(`${entry.date}T${entry.startTime}:00`);
+                const endDate = new Date(`${entry.date}T${entry.endTime}:00`);
+                if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) continue;
+
+                await Calendar.createEventAsync(cal.id, {
+                  title: entry.title,
+                  startDate,
+                  endDate,
+                  allDay: entry.allDay,
+                  location: entry.location,
+                  notes: entry.notes,
+                });
+                syncCount++;
+              }
+            }
+            haptics.success();
+            Alert.alert('Sync Complete', `Successfully synced ${syncCount} events to ${cal.title}.`);
+          }
+        }
+      ]);
+    } catch (e) {
+      Alert.alert('Error', 'Failed to sync with calendar.');
+    }
+  }, [entries, haptics]);
+
+  const handleExportData = useCallback(async () => {
+    try {
+      const data = JSON.stringify({ accounts, entries });
+      const file = new FileSystem.File(FileSystem.Paths.document, 'calendify_backup.json');
+      file.write(data);
+      await Sharing.shareAsync(file.uri);
+      haptics.success();
+    } catch (e) {
+      Alert.alert('Error', 'Failed to export data.');
+    }
+  }, [accounts, entries, haptics]);
+
+  const handleImportData = useCallback(async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({ type: 'application/json' });
+      if (result.canceled) return;
+
+      const fileUri = result.assets[0].uri;
+      const file = new FileSystem.File(fileUri);
+      const content = await file.text();
+      const parsed = JSON.parse(content);
+
+      if (parsed.entries && Array.isArray(parsed.entries)) {
+        clearAll();
+        parsed.entries.forEach((e: any) => addEntry(e));
+        haptics.success();
+        Alert.alert('Import Complete', `Imported ${parsed.entries.length} entries.`);
+      }
+    } catch (e) {
+      Alert.alert('Error', 'Invalid backup file.');
+    }
+  }, [clearAll, addEntry, haptics]);
+
+  const SettingsIcon = ({ icon: Icon, color }: { icon: typeof Sun; color: string }) => (
+    <View style={[styles.iconBg, { backgroundColor: getLightBackground(color) }]}>
+      <Icon size={18} color={color} strokeWidth={1.75} />
+    </View>
+  );
+
+  return (
+    <AnimatedScreen style={{ backgroundColor: colors.background }}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + Spacing.base }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={[TypeScale.headlineMedium, styles.title, { color: colors.onBackground }]}>
+          Settings
+        </Text>
+
+        {/* DEVICE CALENDARS */}
+        {uniqueCalendars.length > 0 && (
+          <>
+            <SectionHeader title="GOOGLE & APPLE CALENDARS" />
+            <View style={[styles.card, { backgroundColor: colors.surface }]}>
+              <AccordionItem calendars={uniqueCalendars} onSync={handleSyncCalendar} />
+            </View>
+          </>
+        )}
+
+        {/* ACCOUNTS */}
+        <SectionHeader title="LOCAL ACCOUNTS" />
+        <View style={[styles.card, { backgroundColor: colors.surface }]}>
+          {accounts.map((account, idx) => (
+            <View key={account.id}>
+              {idx > 0 && <Divider inset />}
+              <HapticButton
+                onPress={() => setDefault(account.id)}
+                hapticStyle="selection"
+                style={styles.accountRow}
+              >
+                <Avatar
+                  initials={account.displayName.slice(0, 1)}
+                  color={account.avatarColor}
+                  size={40}
+                />
+                <View style={styles.accountInfo}>
+                  <Text style={[TypeScale.bodyLarge, { color: colors.onSurface }]}>
+                    {account.displayName}
+                  </Text>
+                  <Text style={[TypeScale.bodySmall, { color: colors.onSurfaceVariant }]}>
+                    {account.email}
+                  </Text>
+                </View>
+                {account.isDefault && (
+                  <View style={[styles.defaultBadge, { backgroundColor: `${colors.primary}18` }]}>
+                    <Text style={[TypeScale.labelSmall, { color: colors.primary }]}>Default</Text>
+                  </View>
+                )}
+                <HapticButton
+                  onPress={() => handleDeleteAccount(account.id, account.email)}
+                  hapticStyle="medium"
+                  style={styles.deleteBtn}
+                >
+                  <Trash2 size={16} color={colors.error} strokeWidth={1.75} />
+                </HapticButton>
+              </HapticButton>
+            </View>
+          ))}
+          <HapticButton
+            onPress={() => setAddAccountVisible(true)}
+            hapticStyle="medium"
+            style={styles.addAccountRow}
+          >
+            <View style={[styles.iconBg, { backgroundColor: getLightBackground(colors.primary) }]}>
+              <Plus size={18} color={colors.primary} strokeWidth={2} />
+            </View>
+            <Text style={[TypeScale.labelLarge, { color: colors.primary }]}>
+              Add account
+            </Text>
+          </HapticButton>
+        </View>
+
+        {/* APPEARANCE */}
+        <SectionHeader title="APPEARANCE" />
+        <View style={[styles.card, { backgroundColor: colors.surface }]}>
+          <SettingsRow
+            icon={<SettingsIcon icon={Smartphone} color={ICON_COLORS.theme} />}
+            label="Theme"
+            value={themeLabels[themeMode]}
+            onPress={() => setThemePickerVisible(true)}
+          />
+          <Divider inset />
+          <SettingsRow
+            icon={<SettingsIcon icon={Palette} color={ICON_COLORS.palette} />}
+            label="Color Scheme"
+            value={colorLabels[colorScheme]}
+            onPress={() => setColorPickerVisible(true)}
+          />
+        </View>
+
+        {/* DATA */}
+        <SectionHeader title="DATA" />
+        <View style={[styles.card, { backgroundColor: colors.surface }]}>
+          <SettingsRow
+            icon={<SettingsIcon icon={Upload} color={ICON_COLORS.exportCalendify} />}
+            label="Export all data"
+            value="Backup"
+            onPress={handleExportData}
+          />
+          <Divider inset />
+          <SettingsRow
+            icon={<SettingsIcon icon={Download} color={ICON_COLORS.importCalendify} />}
+            label="Import data"
+            value="Restore"
+            onPress={handleImportData}
+          />
+        </View>
+
+        {/* ABOUT */}
+        <SectionHeader title="ABOUT" />
+        <View style={[styles.card, { backgroundColor: colors.surface }]}>
+          <SettingsRow
+            icon={<SettingsIcon icon={Info} color={ICON_COLORS.version} />}
+            label="Version"
+            value="1.0.0"
+          />
+          <Divider inset />
+          <SettingsRow
+            icon={<SettingsIcon icon={Shield} color={ICON_COLORS.privacy} />}
+            label="Privacy"
+            value="All data stored locally"
+          />
+        </View>
+
+        <View style={styles.bottomSpacer} />
+      </ScrollView>
+
+      {/* Theme Picker Modal */}
+      <Modal visible={themePickerVisible} transparent animationType="fade" onRequestClose={() => setThemePickerVisible(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setThemePickerVisible(false)}>
+          <View />
+        </Pressable>
+        <View style={styles.modalContainer}>
+          <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
+            <View style={[styles.handle, { backgroundColor: colors.outlineVariant }]} />
+            <Text style={[TypeScale.titleLarge, styles.modalTitle, { color: colors.onSurface }]}>
+              Theme
+            </Text>
+            {([['system', Smartphone, 'Follow system'], ['light', Sun, 'Light'], ['dark', Moon, 'Dark']] as const).map(([mode, TheIcon, modeLabel]) => (
+              <HapticButton
+                key={mode}
+                onPress={() => {
+                  setThemeMode(mode as ThemeMode);
+                  setThemePickerVisible(false);
+                  haptics.selection();
+                }}
+                hapticStyle="selection"
+                style={[
+                  styles.optionRow,
+                  themeMode === mode ? { backgroundColor: `${colors.primary}10` } : {},
+                ]}
+              >
+                <View style={[styles.iconBg, { backgroundColor: getLightBackground(ICON_COLORS.theme) }]}>
+                  <TheIcon size={18} color={ICON_COLORS.theme} strokeWidth={1.75} />
+                </View>
+                <Text style={[TypeScale.bodyLarge, { color: colors.onSurface, flex: 1 }]}>
+                  {modeLabel}
+                </Text>
+                {themeMode === mode && (
+                  <CheckCircle2 size={20} color={colors.primary} strokeWidth={1.75} />
+                )}
+              </HapticButton>
+            ))}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Color Scheme Picker Modal */}
+      <Modal visible={colorPickerVisible} transparent animationType="fade" onRequestClose={() => setColorPickerVisible(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setColorPickerVisible(false)}>
+          <View />
+        </Pressable>
+        <View style={styles.modalContainer}>
+          <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
+            <View style={[styles.handle, { backgroundColor: colors.outlineVariant }]} />
+            <Text style={[TypeScale.titleLarge, styles.modalTitle, { color: colors.onSurface }]}>
+              Color Scheme
+            </Text>
+            {(['default', 'blue'] as const).map((scheme) => (
+              <HapticButton
+                key={scheme}
+                onPress={() => {
+                  setColorScheme(scheme);
+                  setColorPickerVisible(false);
+                  haptics.selection();
+                }}
+                hapticStyle="selection"
+                style={[
+                  styles.optionRow,
+                  colorScheme === scheme ? { backgroundColor: `${colors.primary}10` } : {},
+                ]}
+              >
+                <View
+                  style={[
+                    styles.colorSwatch,
+                    { backgroundColor: scheme === 'blue' ? '#1A73E8' : '#4CAF9A' },
+                  ]}
+                />
+                <Text style={[TypeScale.bodyLarge, { color: colors.onSurface, flex: 1 }]}>
+                  {colorLabels[scheme]}
+                </Text>
+                {colorScheme === scheme && (
+                  <CheckCircle2 size={20} color={colors.primary} strokeWidth={1.75} />
+                )}
+              </HapticButton>
+            ))}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Add Account Modal */}
+      <Modal visible={addAccountVisible} transparent animationType="fade" onRequestClose={() => setAddAccountVisible(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setAddAccountVisible(false)}>
+          <View />
+        </Pressable>
+        <View style={styles.modalContainer}>
+          <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
+            <View style={[styles.handle, { backgroundColor: colors.outlineVariant }]} />
+            <Text style={[TypeScale.titleLarge, styles.modalTitle, { color: colors.onSurface }]}>
+              Add Account
+            </Text>
+            <TextInput
+              style={[styles.input, { backgroundColor: colors.surfaceVariant, color: colors.onSurface }]}
+              placeholder="Email"
+              placeholderTextColor={colors.onSurfaceVariant}
+              value={newEmail}
+              onChangeText={setNewEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            <TextInput
+              style={[styles.input, { backgroundColor: colors.surfaceVariant, color: colors.onSurface }]}
+              placeholder="Display Name"
+              placeholderTextColor={colors.onSurfaceVariant}
+              value={newName}
+              onChangeText={setNewName}
+            />
+            <HapticButton
+              onPress={handleAddAccount}
+              hapticStyle="heavy"
+              style={[styles.saveButton, { backgroundColor: colors.primary }]}
+            >
+              <Text style={[TypeScale.labelLarge, { color: colors.onPrimary }]}>Add Account</Text>
+            </HapticButton>
+          </View>
+        </View>
+      </Modal>
+    </AnimatedScreen>
+  );
+}
+
+const styles = StyleSheet.create({
+  scrollView: { flex: 1 },
+  scrollContent: { flexGrow: 1 },
+  title: {
+    paddingHorizontal: Spacing.base,
+    marginBottom: Spacing.section,
+  },
+  card: {
+    borderRadius: 16,
+    marginHorizontal: Spacing.base,
+    marginBottom: Spacing.base,
+    overflow: 'hidden',
+    elevation: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+  },
+  iconBg: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  calendarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.base,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  accountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.base,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  accountInfo: { flex: 1 },
+  defaultBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 9999,
+  },
+  deleteBtn: { padding: Spacing.small },
+  addAccountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.base,
+    paddingVertical: 12,
+    gap: 12,
+  },
+  bottomSpacer: { height: 40 },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  modalContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+  },
+  modalSheet: {
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: Spacing.base,
+    paddingBottom: 40,
+    paddingTop: Spacing.compact,
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: Spacing.section,
+  },
+  modalTitle: {
+    marginBottom: Spacing.base,
+    paddingHorizontal: Spacing.small,
+  },
+  optionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: Spacing.compact,
+    paddingVertical: 12,
+    borderRadius: 12,
+    marginBottom: 4,
+    gap: 12,
+  },
+  colorSwatch: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+  },
+  input: {
+    borderRadius: 12,
+    paddingHorizontal: Spacing.base,
+    paddingVertical: 14,
+    marginBottom: Spacing.compact,
+    fontSize: 16,
+  },
+  saveButton: {
+    alignItems: 'center',
+    paddingVertical: 14,
+    borderRadius: 9999,
+    marginTop: Spacing.small,
+  },
+});

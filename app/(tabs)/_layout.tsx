@@ -1,35 +1,75 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
+import React, { useState, useCallback } from 'react';
+import { View, StyleSheet } from 'react-native';
+import { Slot, useRouter, usePathname } from 'expo-router';
+import { CustomTabBar } from '@/src/components/bottomnav/CustomTabBar';
+import { AddEntrySheet } from '@/src/components/sheets/AddEntrySheet';
+import { useThemeColors } from '@/src/hooks/useThemeColors';
 
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+export default function TabsLayout() {
+  const colors = useThemeColors();
+  const router = useRouter();
+  const pathname = usePathname();
+  const [sheetVisible, setSheetVisible] = useState(false);
 
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
+  // Determine active tab from pathname
+  const getActiveTab = () => {
+    if (pathname.includes('/reminders')) return 'reminders';
+    if (pathname.includes('/birthdays')) return 'birthdays';
+    if (pathname.includes('/settings')) return 'settings';
+    return 'index';
+  };
+
+  const handleTabPress = useCallback(
+    (key: string) => {
+      if (key === 'index') {
+        router.replace('/(tabs)' as never);
+      } else {
+        router.replace(`/(tabs)/${key}` as never);
+      }
+    },
+    [router]
+  );
+
+  const handleFABPress = useCallback(() => {
+    setSheetVisible(true);
+  }, []);
+
+  const handleSheetClose = useCallback(() => {
+    setSheetVisible(false);
+  }, []);
+
+  const handleEntryTypeSelect = useCallback(
+    (type: 'reminder' | 'task' | 'event' | 'birthday') => {
+      setSheetVisible(false);
+      router.push(`/add/${type}` as never);
+    },
+    [router]
+  );
 
   return (
-    <Tabs
-      screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
-        headerShown: false,
-        tabBarButton: HapticTab,
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
-        }}
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={styles.content}>
+        <Slot />
+      </View>
+      <CustomTabBar
+        activeTab={getActiveTab()}
+        onTabPress={handleTabPress}
+        onFABPress={handleFABPress}
       />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
-        }}
+      <AddEntrySheet
+        visible={sheetVisible}
+        onClose={handleSheetClose}
+        onSelect={handleEntryTypeSelect}
       />
-    </Tabs>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  content: {
+    flex: 1,
+  },
+});
