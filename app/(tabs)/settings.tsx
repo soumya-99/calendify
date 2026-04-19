@@ -21,6 +21,7 @@ import {
   parseEncryptedBackup,
 } from '@/src/utils/encryptedBackup';
 import * as Calendar from 'expo-calendar';
+import Constants from 'expo-constants';
 import * as Contacts from 'expo-contacts';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
@@ -610,7 +611,7 @@ export default function SettingsScreen() {
           <SettingsRow
             icon={<SettingsIcon icon={Info} color={ICON_COLORS.version} />}
             label="Version"
-            value="1.0.0"
+            value={Constants.expoConfig?.version || '1.0.0'}
           />
           <Divider inset />
           <SettingsRow
