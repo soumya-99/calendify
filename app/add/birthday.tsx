@@ -1,6 +1,4 @@
-import React, { useState, useCallback } from 'react';
 import { StyleSheet, View, Text, TextInput } from 'react-native';
-import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AnimatedScreen } from '@/src/components/ui/AnimatedScreen';
 import { HapticButton } from '@/src/components/ui/HapticButton';
@@ -15,28 +13,47 @@ import { Spacing } from '@/src/theme/spacing';
 import { ShapeScale } from '@/src/theme/motion';
 import { DOT_COLORS } from '@/src/constants/dotColors';
 import { FormDateTimePicker } from '@/src/components/ui/FormDateTimePicker';
+import type { Birthday } from '@/src/types/entries';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
+import React, { useState, useCallback, useEffect, useMemo } from 'react';
 
 export default function AddBirthdayScreen() {
+  const { id } = useLocalSearchParams<{ id?: string }>();
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const haptics = useHaptics();
   const addEntry = useEventsStore((s) => s.addEntry);
+  const updateEntry = useEventsStore((s) => s.updateEntry);
+  const entries = useEventsStore((s) => s.entries);
   const defaultAccount = useAccountsStore((s) => s.getDefaultAccount());
   const selectedDate = useCalendarStore((s) => s.selectedDate);
+  const existingEntry = useMemo(
+    () => entries.find((entry): entry is Birthday => entry.id === (id ?? '') && entry.type === 'BIRTHDAY'),
+    [entries, id]
+  );
+  const isEditing = !!existingEntry;
 
   const [personName, setPersonName] = useState('');
   const [dateObj, setDateObj] = useState(new Date(`${selectedDate}T12:00:00`));
   const [birthYear, setBirthYear] = useState('');
   const [notes, setNotes] = useState('');
 
+  useEffect(() => {
+    if (!existingEntry) return;
+
+    setPersonName(existingEntry.personName);
+    setDateObj(new Date(`${existingEntry.date}T12:00:00`));
+    setBirthYear(existingEntry.birthYear ? String(existingEntry.birthYear) : '');
+    setNotes(existingEntry.notes ?? '');
+  }, [existingEntry]);
+
   const handleSave = useCallback(() => {
     if (!personName.trim()) return;
 
     const date = dateObj.toISOString().split('T')[0];
-
-    addEntry({
+    const payload = {
       type: 'BIRTHDAY',
       title: `${personName.trim()}'s Birthday`,
       personName: personName.trim(),
@@ -44,11 +61,18 @@ export default function AddBirthdayScreen() {
       birthYear: birthYear ? parseInt(birthYear, 10) : undefined,
       notes: notes.trim() || undefined,
       colorTag: DOT_COLORS.BIRTHDAY,
-      accountId: defaultAccount?.id ?? 'local',
-    });
+      accountId: existingEntry?.accountId ?? defaultAccount?.id ?? 'local',
+    };
+
+    if (existingEntry) {
+      updateEntry(existingEntry.id, payload);
+    } else {
+      addEntry(payload);
+    }
+
     haptics.success();
     router.back();
-  }, [personName, dateObj, birthYear, notes, defaultAccount, addEntry, haptics, router]);
+  }, [personName, dateObj, birthYear, notes, existingEntry, defaultAccount, updateEntry, addEntry, haptics, router]);
 
   return (
     <AnimatedScreen style={{ backgroundColor: colors.background }}>
@@ -60,7 +84,7 @@ export default function AddBirthdayScreen() {
           <HapticButton onPress={() => router.back()} hapticStyle="light" style={styles.backButton}>
             <ChevronLeft size={24} color={colors.onSurface} strokeWidth={1.75} />
           </HapticButton>
-          <Text style={[TypeScale.titleLarge, { color: colors.onBackground }]}>New Birthday</Text>
+          <Text style={[TypeScale.titleLarge, { color: colors.onBackground }]}>{isEditing ? 'Edit Birthday' : 'New Birthday'}</Text>
           <HapticButton onPress={handleSave} hapticStyle="heavy" style={[styles.saveButton, { backgroundColor: colors.primary }]}>
             <Text style={[TypeScale.labelLarge, { color: colors.onPrimary }]}>Save</Text>
           </HapticButton>

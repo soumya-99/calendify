@@ -11,22 +11,30 @@ import { useCalendarStore } from '@/src/stores/useCalendarStore';
 import { useEventsStore } from '@/src/stores/useEventsStore';
 import { Spacing } from '@/src/theme/spacing';
 import { TypeScale } from '@/src/theme/typography';
-import type { RepeatRule } from '@/src/types/entries';
+import type { Reminder, RepeatRule } from '@/src/types/entries';
 import * as Calendar from 'expo-calendar';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function AddReminderScreen() {
+  const { id } = useLocalSearchParams<{ id?: string }>();
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const haptics = useHaptics();
   const addEntry = useEventsStore((s) => s.addEntry);
+  const updateEntry = useEventsStore((s) => s.updateEntry);
+  const entries = useEventsStore((s) => s.entries);
   const defaultAccount = useAccountsStore((s) => s.getDefaultAccount());
   const selectedDate = useCalendarStore((s) => s.selectedDate);
+  const existingEntry = useMemo(
+    () => entries.find((entry): entry is Reminder => entry.id === (id ?? '') && entry.type === 'REMINDER'),
+    [entries, id]
+  );
+  const isEditing = !!existingEntry;
 
   const [title, setTitle] = useState('');
   const [dateObj, setDateObj] = useState(new Date(`${selectedDate}T12:00:00`));
@@ -36,13 +44,25 @@ export default function AddReminderScreen() {
   const [colorTag, setColorTag] = useState(DOT_COLORS.REMINDER);
   const [selectedCalendarId, setSelectedCalendarId] = useState(defaultAccount?.id ?? 'local');
 
+  useEffect(() => {
+    if (!existingEntry) return;
+
+    setTitle(existingEntry.title);
+    setDateObj(new Date(`${existingEntry.date}T12:00:00`));
+    setTimeObj(new Date(`${existingEntry.date}T${existingEntry.time}:00`));
+    setRepeat(existingEntry.repeat);
+    setNotes(existingEntry.notes ?? '');
+    setColorTag(existingEntry.colorTag);
+    setSelectedCalendarId(existingEntry.accountId);
+  }, [existingEntry]);
+
   const handleSave = useCallback(async () => {
     if (!title.trim()) return;
 
     const dateStr = dateObj.toISOString().split('T')[0];
     const timeStr = timeObj.toTimeString().slice(0, 5);
 
-    if (selectedCalendarId.startsWith('os_')) {
+    if (!isEditing && selectedCalendarId.startsWith('os_')) {
       const osId = selectedCalendarId.replace('os_', '');
       try {
         const start = timeObj;
@@ -59,20 +79,27 @@ export default function AddReminderScreen() {
       }
     }
 
-    addEntry({
+    const payload = {
       type: 'REMINDER',
       title: title.trim(),
       date: dateStr,
       time: timeStr,
       repeat,
-      notified: false,
+      notified: existingEntry?.notified ?? false,
       notes: notes.trim() || undefined,
       colorTag,
       accountId: selectedCalendarId,
-    });
+    };
+
+    if (existingEntry) {
+      updateEntry(existingEntry.id, payload);
+    } else {
+      addEntry(payload);
+    }
+
     haptics.success();
     router.back();
-  }, [title, dateObj, timeObj, repeat, notes, colorTag, selectedCalendarId, addEntry, haptics, router]);
+  }, [title, dateObj, timeObj, repeat, notes, colorTag, selectedCalendarId, isEditing, existingEntry, updateEntry, addEntry, haptics, router]);
 
   const repeatOptions: { value: RepeatRule; label: string; icon: string }[] = [
     { value: 'NONE', label: 'Never', icon: '✕' },
@@ -92,7 +119,7 @@ export default function AddReminderScreen() {
           <HapticButton onPress={() => router.back()} hapticStyle="light" style={styles.backButton}>
             <ChevronLeft size={24} color={colors.onSurface} strokeWidth={1.75} />
           </HapticButton>
-          <Text style={[TypeScale.titleLarge, { color: colors.onBackground }]}>New Reminder</Text>
+          <Text style={[TypeScale.titleLarge, { color: colors.onBackground }]}>{isEditing ? 'Edit Reminder' : 'New Reminder'}</Text>
           <HapticButton onPress={handleSave} hapticStyle="heavy" style={[styles.saveBtn, { backgroundColor: colors.primary }]}>
             <Text style={[TypeScale.labelLarge, { color: colors.onPrimary }]}>Save</Text>
           </HapticButton>

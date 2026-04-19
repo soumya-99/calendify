@@ -15,6 +15,7 @@ import { DOT_COLORS } from '@/src/constants/dotColors';
 import { formatDateDisplay, formatTime } from '@/src/utils/dateHelpers';
 import {
   ChevronLeft,
+  Pencil,
   Trash2,
   Clock,
   MapPin,
@@ -22,7 +23,7 @@ import {
   CalendarDays,
   User,
 } from 'lucide-react-native';
-import type { CalendarEvent, Reminder, Task, Birthday } from '@/src/types/entries';
+import type { CalendarEvent, Reminder, Birthday } from '@/src/types/entries';
 
 export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -34,6 +35,19 @@ export default function EventDetailScreen() {
   const entries = useEventsStore((s) => s.entries);
   const entry = useMemo(() => entries.find((e) => e.id === (id ?? '')), [entries, id]);
   const deleteEntry = useEventsStore((s) => s.deleteEntry);
+
+  const handleEdit = useCallback(() => {
+    if (!entry) return;
+
+    const routeByType = {
+      EVENT: 'event',
+      REMINDER: 'reminder',
+      TASK: 'task',
+      BIRTHDAY: 'birthday',
+    } as const;
+
+    router.push(`/add/${routeByType[entry.type]}?id=${entry.id}` as never);
+  }, [entry, router]);
 
   const handleDelete = useCallback(() => {
     if (!entry) return;
@@ -82,14 +96,24 @@ export default function EventDetailScreen() {
           >
             <ChevronLeft size={24} color={colors.onSurface} strokeWidth={1.75} />
           </HapticButton>
-          <HapticButton
-            onPress={handleDelete}
-            hapticStyle="medium"
-            style={styles.navButton}
-            accessibilityLabel="Delete entry"
-          >
-            <Trash2 size={20} color={colors.error} strokeWidth={1.75} />
-          </HapticButton>
+          <View style={styles.headerActions}>
+            <HapticButton
+              onPress={handleEdit}
+              hapticStyle="light"
+              style={styles.navButton}
+              accessibilityLabel="Edit entry"
+            >
+              <Pencil size={18} color={colors.onSurface} strokeWidth={1.75} />
+            </HapticButton>
+            <HapticButton
+              onPress={handleDelete}
+              hapticStyle="medium"
+              style={styles.navButton}
+              accessibilityLabel="Delete entry"
+            >
+              <Trash2 size={20} color={colors.error} strokeWidth={1.75} />
+            </HapticButton>
+          </View>
         </View>
 
         {/* Type badge */}
@@ -202,6 +226,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderRadius: 22,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.micro,
   },
   typeBadgeRow: {
     paddingHorizontal: Spacing.base,

@@ -11,22 +11,30 @@ import { useCalendarStore } from '@/src/stores/useCalendarStore';
 import { useEventsStore } from '@/src/stores/useEventsStore';
 import { Spacing } from '@/src/theme/spacing';
 import { TypeScale } from '@/src/theme/typography';
-import type { RepeatRule } from '@/src/types/entries';
+import type { CalendarEvent, RepeatRule } from '@/src/types/entries';
 import * as Calendar from 'expo-calendar';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function AddEventScreen() {
+  const { id } = useLocalSearchParams<{ id?: string }>();
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const haptics = useHaptics();
   const addEntry = useEventsStore((s) => s.addEntry);
+  const updateEntry = useEventsStore((s) => s.updateEntry);
+  const entries = useEventsStore((s) => s.entries);
   const defaultAccount = useAccountsStore((s) => s.getDefaultAccount());
   const selectedDate = useCalendarStore((s) => s.selectedDate);
+  const existingEntry = useMemo(
+    () => entries.find((entry): entry is CalendarEvent => entry.id === (id ?? '') && entry.type === 'EVENT'),
+    [entries, id]
+  );
+  const isEditing = !!existingEntry;
 
   const [title, setTitle] = useState('');
   const [dateObj, setDateObj] = useState(new Date(`${selectedDate}T12:00:00`));
@@ -39,6 +47,21 @@ export default function AddEventScreen() {
   const [colorTag, setColorTag] = useState(DOT_COLORS.EVENT);
   const [selectedCalendarId, setSelectedCalendarId] = useState(defaultAccount?.id ?? 'local');
 
+  useEffect(() => {
+    if (!existingEntry) return;
+
+    setTitle(existingEntry.title);
+    setDateObj(new Date(`${existingEntry.date}T12:00:00`));
+    setStartObj(new Date(`${existingEntry.date}T${existingEntry.startTime}:00`));
+    setEndObj(new Date(`${existingEntry.date}T${existingEntry.endTime}:00`));
+    setLocation(existingEntry.location ?? '');
+    setAllDay(existingEntry.allDay);
+    setRepeat(existingEntry.repeat);
+    setNotes(existingEntry.notes ?? '');
+    setColorTag(existingEntry.colorTag);
+    setSelectedCalendarId(existingEntry.accountId);
+  }, [existingEntry]);
+
   const handleSave = useCallback(async () => {
     if (!title.trim()) return;
 
@@ -46,7 +69,7 @@ export default function AddEventScreen() {
     const startTimeStr = startObj.toTimeString().slice(0, 5);
     const endTimeStr = endObj.toTimeString().slice(0, 5);
 
-    if (selectedCalendarId.startsWith('os_')) {
+    if (!isEditing && selectedCalendarId.startsWith('os_')) {
       const osId = selectedCalendarId.replace('os_', '');
       try {
         await Calendar.createEventAsync(osId, {
@@ -62,7 +85,7 @@ export default function AddEventScreen() {
       }
     }
 
-    addEntry({
+    const payload = {
       type: 'EVENT',
       title: title.trim(),
       date: dateStr,
@@ -74,10 +97,17 @@ export default function AddEventScreen() {
       notes: notes.trim() || undefined,
       colorTag,
       accountId: selectedCalendarId,
-    });
+    };
+
+    if (existingEntry) {
+      updateEntry(existingEntry.id, payload);
+    } else {
+      addEntry(payload);
+    }
+
     haptics.success();
     router.back();
-  }, [title, dateObj, startObj, endObj, location, allDay, repeat, notes, colorTag, selectedCalendarId, addEntry, haptics, router]);
+  }, [title, dateObj, startObj, endObj, location, allDay, repeat, notes, colorTag, selectedCalendarId, isEditing, existingEntry, updateEntry, addEntry, haptics, router]);
 
   const repeatOptions: { value: RepeatRule; label: string }[] = [
     { value: 'NONE', label: 'Never' },
@@ -97,7 +127,7 @@ export default function AddEventScreen() {
           <HapticButton onPress={() => router.back()} hapticStyle="light" style={styles.backButton}>
             <ChevronLeft size={24} color={colors.onSurface} strokeWidth={1.75} />
           </HapticButton>
-          <Text style={[TypeScale.titleLarge, { color: colors.onBackground }]}>New Event</Text>
+          <Text style={[TypeScale.titleLarge, { color: colors.onBackground }]}>{isEditing ? 'Edit Event' : 'New Event'}</Text>
           <HapticButton onPress={handleSave} hapticStyle="heavy" style={[styles.saveBtn, { backgroundColor: colors.primary }]}>
             <Text style={[TypeScale.labelLarge, { color: colors.onPrimary }]}>Save</Text>
           </HapticButton>
@@ -170,7 +200,12 @@ export default function AddEventScreen() {
         <CalendarPicker value={selectedCalendarId} onChange={(id) => setSelectedCalendarId(id)} />
 
         <Text style={[TypeScale.labelMedium, styles.fieldLabel, { color: colors.onSurfaceVariant }]}>REPEAT</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: Spacing.base, marginBottom: Spacing.compact }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.repeatScroll}
+          contentContainerStyle={styles.repeatScrollContent}
+        >
           <View style={[styles.segmentRow, { backgroundColor: colors.surfaceVariant }]}>
             {repeatOptions.map((opt) => {
               const isActive = repeat === opt.value;
@@ -243,6 +278,14 @@ const styles = StyleSheet.create({
   switchRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   timeRow: { flexDirection: 'row' },
   timeField: { flex: 1 },
+  repeatScroll: {
+    marginHorizontal: Spacing.base,
+    marginBottom: Spacing.compact,
+    flexGrow: 0,
+  },
+  repeatScrollContent: {
+    paddingRight: Spacing.base,
+  },
   segmentRow: {
     flexDirection: 'row',
     borderRadius: 12,

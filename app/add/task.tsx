@@ -11,11 +11,11 @@ import { useCalendarStore } from '@/src/stores/useCalendarStore';
 import { useEventsStore } from '@/src/stores/useEventsStore';
 import { Spacing } from '@/src/theme/spacing';
 import { TypeScale } from '@/src/theme/typography';
-import type { Priority } from '@/src/types/entries';
+import type { Priority, Task } from '@/src/types/entries';
 import * as Calendar from 'expo-calendar';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -26,13 +26,21 @@ const PRIORITY_STYLES: Record<Priority, { color: string; emoji: string }> = {
 };
 
 export default function AddTaskScreen() {
+  const { id } = useLocalSearchParams<{ id?: string }>();
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const haptics = useHaptics();
   const addEntry = useEventsStore((s) => s.addEntry);
+  const updateEntry = useEventsStore((s) => s.updateEntry);
+  const entries = useEventsStore((s) => s.entries);
   const defaultAccount = useAccountsStore((s) => s.getDefaultAccount());
   const selectedDate = useCalendarStore((s) => s.selectedDate);
+  const existingEntry = useMemo(
+    () => entries.find((entry): entry is Task => entry.id === (id ?? '') && entry.type === 'TASK'),
+    [entries, id]
+  );
+  const isEditing = !!existingEntry;
 
   const [title, setTitle] = useState('');
   const [dateObj, setDateObj] = useState(new Date(`${selectedDate}T12:00:00`));
@@ -41,12 +49,23 @@ export default function AddTaskScreen() {
   const [colorTag, setColorTag] = useState(DOT_COLORS.TASK);
   const [selectedCalendarId, setSelectedCalendarId] = useState(defaultAccount?.id ?? 'local');
 
+  useEffect(() => {
+    if (!existingEntry) return;
+
+    setTitle(existingEntry.title);
+    setDateObj(new Date(`${existingEntry.date}T12:00:00`));
+    setPriority(existingEntry.priority);
+    setNotes(existingEntry.notes ?? '');
+    setColorTag(existingEntry.colorTag);
+    setSelectedCalendarId(existingEntry.accountId);
+  }, [existingEntry]);
+
   const handleSave = useCallback(async () => {
     if (!title.trim()) return;
 
     const dateStr = dateObj.toISOString().split('T')[0];
 
-    if (selectedCalendarId.startsWith('os_')) {
+    if (!isEditing && selectedCalendarId.startsWith('os_')) {
       const osId = selectedCalendarId.replace('os_', '');
       try {
         await Calendar.createEventAsync(osId, {
@@ -61,19 +80,26 @@ export default function AddTaskScreen() {
       }
     }
 
-    addEntry({
+    const payload = {
       type: 'TASK',
       title: title.trim(),
       date: dateStr,
-      completed: false,
+      completed: existingEntry?.completed ?? false,
       priority,
       notes: notes.trim() || undefined,
       colorTag,
       accountId: selectedCalendarId,
-    });
+    };
+
+    if (existingEntry) {
+      updateEntry(existingEntry.id, payload);
+    } else {
+      addEntry(payload);
+    }
+
     haptics.success();
     router.back();
-  }, [title, dateObj, priority, notes, colorTag, selectedCalendarId, addEntry, haptics, router]);
+  }, [title, dateObj, priority, notes, colorTag, selectedCalendarId, isEditing, existingEntry, updateEntry, addEntry, haptics, router]);
 
   const priorities: Priority[] = ['LOW', 'MEDIUM', 'HIGH'];
 
@@ -87,7 +113,7 @@ export default function AddTaskScreen() {
           <HapticButton onPress={() => router.back()} hapticStyle="light" style={styles.backButton}>
             <ChevronLeft size={24} color={colors.onSurface} strokeWidth={1.75} />
           </HapticButton>
-          <Text style={[TypeScale.titleLarge, { color: colors.onBackground }]}>New Task</Text>
+          <Text style={[TypeScale.titleLarge, { color: colors.onBackground }]}>{isEditing ? 'Edit Task' : 'New Task'}</Text>
           <HapticButton onPress={handleSave} hapticStyle="heavy" style={[styles.saveBtn, { backgroundColor: colors.primary }]}>
             <Text style={[TypeScale.labelLarge, { color: colors.onPrimary }]}>Save</Text>
           </HapticButton>
