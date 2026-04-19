@@ -403,7 +403,7 @@ export default function SettingsScreen() {
         {/* DEVICE CALENDARS - EXPORT */}
         {uniqueCalendars.length > 0 && (
           <>
-            <SectionHeader title="EXPORT LOCAL TO CALENDAR" />
+            <SectionHeader title="EXPORT TO CALENDAR" />
             <View style={[styles.card, { backgroundColor: colors.surface }]}>
               <AccordionItem calendars={uniqueCalendars} onSync={handleSyncCalendar} />
             </View>
