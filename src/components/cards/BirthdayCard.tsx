@@ -40,20 +40,20 @@ export function BirthdayCard({ birthday, onPress }: BirthdayCardProps) {
           backgroundColor: `${colors.surfaceVariant}99`,
         },
       ]}
-      accessibilityLabel={`Birthday: ${birthday.personName}, ${countdownText}`}
+      accessibilityLabel={`Birthday: ${birthday.personName ?? birthday.title}, ${countdownText}`}
     >
       <View style={[styles.colorBar, { backgroundColor: DOT_COLORS.BIRTHDAY }]} />
       <View style={styles.content}>
         <View style={styles.row}>
           <Avatar
-            initials={birthday.personName.slice(0, 2)}
+            initials={(birthday.personName ?? birthday.title ?? '?').slice(0, 2)}
             color={DOT_COLORS.BIRTHDAY}
             size={36}
             style={styles.avatar}
           />
           <View style={styles.textContainer}>
             <Text style={[TypeScale.titleMedium, { color: colors.onSurface }]} numberOfLines={1}>
-              {birthday.personName}
+              {birthday.personName ?? birthday.title}
             </Text>
             {ageText && (
               <Text style={[TypeScale.bodySmall, { color: colors.onSurfaceVariant }]}>

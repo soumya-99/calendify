@@ -33,7 +33,7 @@ export default function BirthdaysScreen() {
   }, [birthdays]);
 
   const allSorted = useMemo(() => {
-    return [...birthdays].sort((a, b) => a.personName.localeCompare(b.personName));
+    return [...birthdays].sort((a, b) => (a.personName ?? a.title ?? '').localeCompare(b.personName ?? b.title ?? ''));
   }, [birthdays]);
 
   return (

@@ -50,6 +50,12 @@
           "calendarPermission": "Allow Calendify to access your calendar to sync events.",
           "calendarFullAccessPermission": "Allow Calendify to manage your calendar events."
         }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "Allow Calendify to access your contacts to import birthdays."
+        }
       ]
     ],
     "experiments": {
