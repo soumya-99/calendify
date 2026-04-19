@@ -11,7 +11,7 @@ interface CalendifyExport {
 }
 
 /**
- * Serialize app data to .calendify JSON format
+ * Serialize app data to the raw Calendify backup payload
  */
 export function serializeCalendify(
   accounts: Account[],
@@ -29,7 +29,7 @@ export function serializeCalendify(
 }
 
 /**
- * Deserialize .calendify JSON format back to app data
+ * Deserialize the raw Calendify backup payload back to app data
  */
 export function deserializeCalendify(json: string): CalendifyExport {
   const parsed = JSON.parse(json);

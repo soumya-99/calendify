@@ -77,9 +77,17 @@ export const useAccountsStore = create<AccountsState>()(
         if (replace) {
           set({ accounts });
         } else {
-          set((state) => ({
-            accounts: [...state.accounts, ...accounts],
-          }));
+          set((state) => {
+            const mergedAccounts = new Map(state.accounts.map((account) => [account.id, account]));
+
+            for (const account of accounts) {
+              mergedAccounts.set(account.id, account);
+            }
+
+            return {
+              accounts: Array.from(mergedAccounts.values()),
+            };
+          });
         }
       },
     }),

@@ -14,6 +14,12 @@ import { Spacing } from '@/src/theme/spacing';
 import { TypeScale } from '@/src/theme/typography';
 import type { Account } from '@/src/types/accounts';
 import type { ColorSchemeChoice, ThemeMode } from '@/src/types/theme';
+import {
+  CALENDIFY_BACKUP_FILENAME,
+  createEncryptedBackup,
+  isCalendifyBackupFile,
+  parseEncryptedBackup,
+} from '@/src/utils/encryptedBackup';
 import * as Calendar from 'expo-calendar';
 import * as DocumentPicker from 'expo-document-picker';
 import * as FileSystem from 'expo-file-system';
@@ -160,6 +166,7 @@ export default function SettingsScreen() {
   const accounts = useAccountsStore((s) => s.accounts);
   const addAccount = useAccountsStore((s) => s.addAccount);
   const deleteAccount = useAccountsStore((s) => s.deleteAccount);
+  const importAccounts = useAccountsStore((s) => s.importAccounts);
   const setDefault = useAccountsStore((s) => s.setDefault);
   const entries = useEventsStore((s) => s.entries);
   const addEntry = useEventsStore((s) => s.addEntry);
@@ -276,7 +283,7 @@ export default function SettingsScreen() {
           }
         }
       ]);
-    } catch (e) {
+    } catch {
       Alert.alert('Error', 'Failed to sync with calendar.');
     }
   }, [entries, haptics]);
@@ -319,7 +326,7 @@ export default function SettingsScreen() {
           }
         }
       ]);
-    } catch (e) {
+    } catch {
       Alert.alert('Error', 'Failed to import from Device calendar');
     }
   }, [addEntry, haptics]);
@@ -331,12 +338,12 @@ export default function SettingsScreen() {
         text: 'Export',
         onPress: async () => {
           try {
-            const data = JSON.stringify({ accounts, entries });
-            const file = new FileSystem.File(FileSystem.Paths.document, 'calendify_backup.json');
-            file.write(data);
+            const encryptedBackup = createEncryptedBackup(accounts, entries);
+            const file = new FileSystem.File(FileSystem.Paths.document, CALENDIFY_BACKUP_FILENAME);
+            file.write(encryptedBackup);
             await Sharing.shareAsync(file.uri);
             haptics.success();
-          } catch (e) {
+          } catch {
             Alert.alert('Error', 'Failed to export data.');
           }
         }
@@ -351,29 +358,33 @@ export default function SettingsScreen() {
         text: 'Import',
         onPress: async () => {
           try {
-            const result = await DocumentPicker.getDocumentAsync({ type: 'application/json' });
+            const result = await DocumentPicker.getDocumentAsync({ type: '*/*' });
             if (result.canceled) return;
 
-            const fileUri = result.assets[0].uri;
+            const asset = result.assets[0];
+            const fileName = asset.name ?? asset.uri.split('/').pop() ?? '';
+
+            if (!isCalendifyBackupFile(fileName)) {
+              Alert.alert('Invalid File', 'Please select an encrypted .calendify backup file.');
+              return;
+            }
+
+            const fileUri = asset.uri;
             const file = new FileSystem.File(fileUri);
             const content = await file.text();
-            const parsed = JSON.parse(content);
+            const parsed = parseEncryptedBackup(content);
 
-            if (parsed.entries && Array.isArray(parsed.entries)) {
-              importEntries(parsed.entries);
-            }
-            if (parsed.accounts && Array.isArray(parsed.accounts)) {
-              parsed.accounts.forEach((acc: any) => addAccount(acc.email, acc.displayName));
-            }
+            importEntries(parsed.entries);
+            importAccounts(parsed.accounts);
             haptics.success();
             Alert.alert('Success', 'Data imported successfully.');
           } catch (e) {
-            Alert.alert('Error', 'Invalid file or failed to import.');
+            Alert.alert('Error', e instanceof Error ? e.message : 'Invalid file or failed to import.');
           }
         }
       }
     ]);
-  }, [importEntries, addAccount, haptics]);
+  }, [importEntries, importAccounts, haptics]);
 
   const handleClearData = useCallback(() => {
     Alert.alert('Clear Data', 'Are you sure you want to clear all local entries?', [

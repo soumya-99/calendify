@@ -72,9 +72,17 @@ export const useEventsStore = create<EventsState>()(
         if (replace) {
           set({ entries });
         } else {
-          set((state) => ({
-            entries: [...state.entries, ...entries],
-          }));
+          set((state) => {
+            const mergedEntries = new Map(state.entries.map((entry) => [entry.id, entry]));
+
+            for (const entry of entries) {
+              mergedEntries.set(entry.id, entry);
+            }
+
+            return {
+              entries: Array.from(mergedEntries.values()),
+            };
+          });
         }
       },
 
