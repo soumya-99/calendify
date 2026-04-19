@@ -12,7 +12,7 @@ import { Springs } from '@/src/theme/motion';
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 interface HapticButtonProps extends Omit<PressableProps, 'style'> {
-  onPress?: () => void;
+  onPress?: PressableProps['onPress'];
   hapticStyle?: 'light' | 'medium' | 'heavy' | 'selection';
   style?: ViewStyle | ViewStyle[];
   children?: React.ReactNode;
@@ -43,9 +43,9 @@ export function HapticButton({
     }
   }, [scale, reducedMotion]);
 
-  const handlePress = useCallback(() => {
+  const handlePress = useCallback<NonNullable<PressableProps['onPress']>>((event) => {
     haptics[hapticStyle]();
-    onPress?.();
+    onPress?.(event);
   }, [haptics, hapticStyle, onPress]);
 
   const animatedStyle = useAnimatedStyle(() => ({

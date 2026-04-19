@@ -14,6 +14,7 @@ import { TypeScale } from '@/src/theme/typography';
 import { Spacing } from '@/src/theme/spacing';
 import { ShapeScale } from '@/src/theme/motion';
 import { DOT_COLORS } from '@/src/constants/dotColors';
+import { FormDateTimePicker } from '@/src/components/ui/FormDateTimePicker';
 import { ChevronLeft } from 'lucide-react-native';
 
 export default function AddBirthdayScreen() {
@@ -26,12 +27,15 @@ export default function AddBirthdayScreen() {
   const selectedDate = useCalendarStore((s) => s.selectedDate);
 
   const [personName, setPersonName] = useState('');
-  const [date, setDate] = useState(selectedDate);
+  const [dateObj, setDateObj] = useState(new Date(`${selectedDate}T12:00:00`));
   const [birthYear, setBirthYear] = useState('');
   const [notes, setNotes] = useState('');
 
   const handleSave = useCallback(() => {
     if (!personName.trim()) return;
+
+    const date = dateObj.toISOString().split('T')[0];
+
     addEntry({
       type: 'BIRTHDAY',
       title: `${personName.trim()}'s Birthday`,
@@ -44,7 +48,7 @@ export default function AddBirthdayScreen() {
     });
     haptics.success();
     router.back();
-  }, [personName, date, birthYear, notes, defaultAccount, addEntry, haptics, router]);
+  }, [personName, dateObj, birthYear, notes, defaultAccount, addEntry, haptics, router]);
 
   return (
     <AnimatedScreen style={{ backgroundColor: colors.background }}>
@@ -57,8 +61,8 @@ export default function AddBirthdayScreen() {
             <ChevronLeft size={24} color={colors.onSurface} strokeWidth={1.75} />
           </HapticButton>
           <Text style={[TypeScale.titleLarge, { color: colors.onBackground }]}>New Birthday</Text>
-          <HapticButton onPress={handleSave} hapticStyle="heavy" style={styles.saveButton}>
-            <Text style={[TypeScale.labelLarge, { color: colors.primary }]}>Save</Text>
+          <HapticButton onPress={handleSave} hapticStyle="heavy" style={[styles.saveButton, { backgroundColor: colors.primary }]}>
+            <Text style={[TypeScale.labelLarge, { color: colors.onPrimary }]}>Save</Text>
           </HapticButton>
         </View>
 
@@ -74,12 +78,11 @@ export default function AddBirthdayScreen() {
         <Text style={[TypeScale.labelMedium, styles.fieldLabel, { color: colors.onSurfaceVariant }]}>
           BIRTHDAY DATE
         </Text>
-        <TextInput
-          style={[styles.input, { backgroundColor: colors.surfaceVariant, color: colors.onSurface }]}
-          placeholder="YYYY-MM-DD"
-          placeholderTextColor={colors.onSurfaceVariant}
-          value={date}
-          onChangeText={setDate}
+        <FormDateTimePicker
+          mode="date"
+          value={dateObj}
+          onChange={setDateObj}
+          style={{ marginHorizontal: Spacing.base, marginBottom: Spacing.compact }}
         />
 
         <Text style={[TypeScale.labelMedium, styles.fieldLabel, { color: colors.onSurfaceVariant }]}>
@@ -117,7 +120,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.small, paddingVertical: Spacing.small,
   },
   backButton: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 22 },
-  saveButton: { paddingHorizontal: Spacing.base, paddingVertical: Spacing.small },
+  saveButton: { paddingHorizontal: 20, paddingVertical: 8, borderRadius: 9999 },
   input: {
     borderRadius: ShapeScale.small.borderRadius, paddingHorizontal: Spacing.base,
     paddingVertical: Spacing.compact, marginHorizontal: Spacing.base, marginBottom: Spacing.compact, fontSize: 16,

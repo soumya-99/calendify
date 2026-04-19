@@ -47,9 +47,17 @@ export const useAccountsStore = create<AccountsState>()(
       },
 
       deleteAccount: (id) => {
-        set((state) => ({
-          accounts: state.accounts.filter((a) => a.id !== id),
-        }));
+        set((state) => {
+          const accountToDelete = state.accounts.find((a) => a.id === id);
+
+          if (!accountToDelete || accountToDelete.isDefault) {
+            return state;
+          }
+
+          return {
+            accounts: state.accounts.filter((a) => a.id !== id),
+          };
+        });
       },
 
       setDefault: (id) => {

@@ -12,6 +12,7 @@ import { useEventsStore } from '@/src/stores/useEventsStore';
 import { useThemeStore } from '@/src/stores/useThemeStore';
 import { Spacing } from '@/src/theme/spacing';
 import { TypeScale } from '@/src/theme/typography';
+import type { Account } from '@/src/types/accounts';
 import type { ColorSchemeChoice, ThemeMode } from '@/src/types/theme';
 import * as Calendar from 'expo-calendar';
 import * as DocumentPicker from 'expo-document-picker';
@@ -223,15 +224,20 @@ export default function SettingsScreen() {
   }, [newEmail, newName, addAccount, haptics]);
 
   const handleDeleteAccount = useCallback(
-    (id: string, email: string) => {
-      Alert.alert('Delete Account', `Delete "${email}"? Entries will remain.`, [
+    (account: Account) => {
+      if (account.isDefault) {
+        Alert.alert('Default Account', 'Set another account as default before deleting this one.');
+        return;
+      }
+
+      Alert.alert('Delete Account', `Delete "${account.email}"? Entries will remain.`, [
         { text: 'Cancel', style: 'cancel' },
         {
           text: 'Delete',
           style: 'destructive',
           onPress: () => {
             haptics.warning();
-            deleteAccount(id);
+            deleteAccount(account.id);
           },
         },
       ]);
@@ -443,9 +449,12 @@ export default function SettingsScreen() {
                     <Text style={[TypeScale.labelSmall, { color: colors.primary }]}>Default</Text>
                   </View>
                 )}
-                {accounts.length > 1 && (
+                {accounts.length > 1 && !account.isDefault && (
                   <HapticButton
-                    onPress={() => handleDeleteAccount(account.id, account.email)}
+                    onPress={(event) => {
+                      event?.stopPropagation();
+                      handleDeleteAccount(account);
+                    }}
                     hapticStyle="medium"
                     style={styles.deleteBtn}
                   >
