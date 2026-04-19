@@ -1,0 +1,57 @@
+name: Build & Release APK
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build & Release Android APK
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+          cache: 'npm'
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17' # React Native 0.73+ requires Java 17
+
+      - name: Install NPM Dependencies
+        run: npm ci
+
+      - name: Generate Native Android Code (Prebuild)
+        run: npx expo prebuild --platform android --clean
+
+      - name: Build Release APK via Gradle
+        # Native gradlew executes significantly faster locally and requires no EAS configs
+        env:
+          NODE_OPTIONS: "--max-old-space-size=4096"
+        run: cd android && ./gradlew assembleRelease
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Splitify-Release-APK
+          path: android/app/build/outputs/apk/release/app-release.apk
+          retention-days: 7
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: "v1.0.${{ github.run_number }}"
+          name: "Release v1.0.${{ github.run_number }}"
+          files: android/app/build/outputs/apk/release/app-release.apk
+          generate_release_notes: true
+          fail_on_unmatched_files: true
