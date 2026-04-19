@@ -1,11 +1,12 @@
-import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
 import { HapticButton } from '@/src/components/ui/HapticButton';
 import { useThemeColors } from '@/src/hooks/useThemeColors';
-import { TypeScale } from '@/src/theme/typography';
 import { Spacing } from '@/src/theme/spacing';
-import { ChevronLeft, ChevronRight } from 'lucide-react-native';
+import { TypeScale } from '@/src/theme/typography';
 import { getMonthName } from '@/src/utils/dateHelpers';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react-native';
+import React, { useState } from 'react';
+import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 interface CalendarHeaderProps {
   month: number;
@@ -13,11 +14,57 @@ interface CalendarHeaderProps {
   onPrev: () => void;
   onNext: () => void;
   onTitlePress?: () => void;
+  onJumpToDate?: (dateStr: string, month: number, year: number) => void;
 }
 
-export function CalendarHeader({ month, year, onPrev, onNext, onTitlePress }: CalendarHeaderProps) {
+export function CalendarHeader({ month, year, onPrev, onNext, onJumpToDate }: CalendarHeaderProps) {
   const colors = useThemeColors();
   const monthName = getMonthName(month);
+
+  const [showModal, setShowModal] = useState(false);
+  const [pickerDate, setPickerDate] = useState(new Date(year, month, 1));
+
+  // Android uses the native calendar dialog directly (no modal needed)
+  const [showAndroidPicker, setShowAndroidPicker] = useState(false);
+
+  const handleTitlePress = () => {
+    // Reset picker to current viewed month
+    const d = new Date(year, month, 1);
+    setPickerDate(d);
+    if (Platform.OS === 'android') {
+      setShowAndroidPicker(true);
+    } else {
+      setShowModal(true);
+    }
+  };
+
+  // Android: calendar dialog — fires when user taps OK
+  const handleAndroidChange = (_: any, selected?: Date) => {
+    setShowAndroidPicker(false);
+    if (selected && onJumpToDate) {
+      const y = selected.getFullYear();
+      const m = selected.getMonth();
+      const d = String(selected.getDate()).padStart(2, '0');
+      const dateStr = `${y}-${String(m + 1).padStart(2, '0')}-${d}`;
+      onJumpToDate(dateStr, m, y);
+    }
+  };
+
+  // iOS: inline calendar inside modal, confirm on "Go"
+  const handleIOSChange = (_: any, d?: Date) => {
+    if (d) setPickerDate(d);
+  };
+
+  const handleIOSConfirm = () => {
+    setShowModal(false);
+    if (onJumpToDate) {
+      const y = pickerDate.getFullYear();
+      const m = pickerDate.getMonth();
+      const d = String(pickerDate.getDate()).padStart(2, '0');
+      const dateStr = `${y}-${String(m + 1).padStart(2, '0')}-${d}`;
+      onJumpToDate(dateStr, m, y);
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -32,15 +79,16 @@ export function CalendarHeader({ month, year, onPrev, onNext, onTitlePress }: Ca
       </HapticButton>
 
       <HapticButton
-        onPress={onTitlePress}
+        onPress={handleTitlePress}
         hapticStyle="selection"
         style={styles.titleContainer}
         accessibilityRole="button"
-        accessibilityLabel={`${monthName} ${year}`}
+        accessibilityLabel={`${monthName} ${year}, tap to jump to any month`}
       >
         <Text style={[TypeScale.headlineMedium, { color: colors.onBackground }]}>
           {monthName} {year}
         </Text>
+        <ChevronDown size={14} color={colors.onSurfaceVariant} strokeWidth={2} style={{ marginLeft: 4, marginTop: 2 }} />
       </HapticButton>
 
       <HapticButton
@@ -52,6 +100,61 @@ export function CalendarHeader({ month, year, onPrev, onNext, onTitlePress }: Ca
       >
         <ChevronRight size={24} color={colors.onSurface} strokeWidth={1.75} />
       </HapticButton>
+
+      {/* Android: full native calendar dialog — no modal wrapper needed */}
+      {showAndroidPicker && (
+        <DateTimePicker
+          value={pickerDate}
+          mode="date"
+          display="calendar"
+          onValueChange={handleAndroidChange}
+          onDismiss={() => setShowAndroidPicker(false)}
+        />
+      )}
+
+      {/* iOS: inline calendar inside a bottom sheet modal */}
+      {Platform.OS === 'ios' && (
+        <Modal
+          visible={showModal}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowModal(false)}
+        >
+          <Pressable style={styles.backdrop} onPress={() => setShowModal(false)} />
+          <View style={[styles.iosSheet, { backgroundColor: colors.surface }]}>
+            <View style={[styles.handle, { backgroundColor: colors.outlineVariant }]} />
+            <Text style={[TypeScale.titleMedium, { color: colors.onSurface, textAlign: 'center', marginBottom: Spacing.small }]}>
+              Jump to Month
+            </Text>
+            {/* display="inline" renders a full swipeable calendar grid on iOS */}
+            <DateTimePicker
+              value={pickerDate}
+              mode="date"
+              display="inline"
+              onChange={handleIOSChange}
+              themeVariant="light"
+              accentColor={colors.primary}
+              style={styles.inlinePicker}
+            />
+            <View style={styles.btnRow}>
+              <HapticButton
+                onPress={() => setShowModal(false)}
+                hapticStyle="light"
+                style={[styles.actionBtn, { backgroundColor: colors.surfaceVariant }]}
+              >
+                <Text style={[TypeScale.labelLarge, { color: colors.onSurfaceVariant }]}>Cancel</Text>
+              </HapticButton>
+              <HapticButton
+                onPress={handleIOSConfirm}
+                hapticStyle="heavy"
+                style={[styles.actionBtn, { backgroundColor: colors.primary, flex: 2 }]}
+              >
+                <Text style={[TypeScale.labelLarge, { color: colors.onPrimary }]}>Go</Text>
+              </HapticButton>
+            </View>
+          </View>
+        </Modal>
+      )}
     </View>
   );
 }
@@ -74,6 +177,44 @@ const styles = StyleSheet.create({
   },
   titleContainer: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  iosSheet: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: Spacing.base,
+    paddingBottom: 44,
+    paddingTop: Spacing.compact,
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginBottom: Spacing.base,
+  },
+  inlinePicker: {
+    alignSelf: 'stretch',
+  },
+  btnRow: {
+    flexDirection: 'row',
+    gap: Spacing.compact,
+    marginTop: Spacing.base,
+  },
+  actionBtn: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 14,
     alignItems: 'center',
   },
 });
