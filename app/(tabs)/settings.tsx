@@ -45,6 +45,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import Animated, { Easing, interpolate, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -298,7 +299,7 @@ export default function SettingsScreen() {
         }
       ]);
     } catch (e) {
-      Alert.alert('Error', 'Failed to import from OS calendar');
+      Alert.alert('Error', 'Failed to import from Device calendar');
     }
   }, [addEntry, haptics]);
 
@@ -387,11 +388,11 @@ export default function SettingsScreen() {
         {/* DEVICE CALENDARS - EXPORT */}
         {uniqueCalendars.length > 0 && (
           <>
-            <SectionHeader title="EXPORT LOCAL TO OS CALENDAR" />
+            <SectionHeader title="EXPORT LOCAL TO CALENDAR" />
             <View style={[styles.card, { backgroundColor: colors.surface }]}>
               <AccordionItem calendars={uniqueCalendars} onSync={handleSyncCalendar} />
             </View>
-            <SectionHeader title="IMPORT FROM OS CALENDAR" />
+            <SectionHeader title="IMPORT FROM CALENDAR" />
             <View style={[styles.card, { backgroundColor: colors.surface }]}>
               <AccordionItem calendars={uniqueCalendars} onSync={handleImportFromCalendar} />
             </View>
@@ -603,35 +604,45 @@ export default function SettingsScreen() {
           <View />
         </Pressable>
         <KeyboardAvoidingView style={styles.modalContainer} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
-            <View style={[styles.handle, { backgroundColor: colors.outlineVariant }]} />
-            <Text style={[TypeScale.titleLarge, styles.modalTitle, { color: colors.onSurface }]}>
-              Add Account
-            </Text>
-            <TextInput
-              style={[styles.input, { backgroundColor: colors.surfaceVariant, color: colors.onSurface }]}
-              placeholder="Email"
-              placeholderTextColor={colors.onSurfaceVariant}
-              value={newEmail}
-              onChangeText={setNewEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-            <TextInput
-              style={[styles.input, { backgroundColor: colors.surfaceVariant, color: colors.onSurface }]}
-              placeholder="Display Name"
-              placeholderTextColor={colors.onSurfaceVariant}
-              value={newName}
-              onChangeText={setNewName}
-            />
-            <HapticButton
-              onPress={handleAddAccount}
-              hapticStyle="heavy"
-              style={[styles.saveButton, { backgroundColor: colors.primary }]}
-            >
-              <Text style={[TypeScale.labelLarge, { color: colors.onPrimary }]}>Add Account</Text>
-            </HapticButton>
-          </View>
+          <KeyboardAwareScrollView
+            contentContainerStyle={styles.modalScrollContent}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
+            enableOnAndroid
+            extraHeight={Spacing.hero}
+            extraScrollHeight={Spacing.section}
+            keyboardOpeningTime={0}
+          >
+            <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
+              <View style={[styles.handle, { backgroundColor: colors.outlineVariant }]} />
+              <Text style={[TypeScale.titleLarge, styles.modalTitle, { color: colors.onSurface }]}>
+                Add Account
+              </Text>
+              <TextInput
+                style={[styles.input, { backgroundColor: colors.surfaceVariant, color: colors.onSurface }]}
+                placeholder="Email"
+                placeholderTextColor={colors.onSurfaceVariant}
+                value={newEmail}
+                onChangeText={setNewEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              <TextInput
+                style={[styles.input, { backgroundColor: colors.surfaceVariant, color: colors.onSurface }]}
+                placeholder="Display Name"
+                placeholderTextColor={colors.onSurfaceVariant}
+                value={newName}
+                onChangeText={setNewName}
+              />
+              <HapticButton
+                onPress={handleAddAccount}
+                hapticStyle="heavy"
+                style={[styles.saveButton, { backgroundColor: colors.primary }]}
+              >
+                <Text style={[TypeScale.labelLarge, { color: colors.onPrimary }]}>Add Account</Text>
+              </HapticButton>
+            </View>
+          </KeyboardAwareScrollView>
         </KeyboardAvoidingView>
       </Modal>
     </AnimatedScreen>
@@ -701,6 +712,10 @@ const styles = StyleSheet.create({
     bottom: 0,
     left: 0,
     right: 0,
+  },
+  modalScrollContent: {
+    flexGrow: 1,
+    justifyContent: 'flex-end',
   },
   modalSheet: {
     borderTopLeftRadius: 28,

@@ -1,22 +1,23 @@
-import React, { useState, useCallback } from 'react';
-import { StyleSheet, View, ScrollView, Text, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AnimatedScreen } from '@/src/components/ui/AnimatedScreen';
+import { CalendarPicker } from '@/src/components/ui/CalendarPicker';
+import { FormDateTimePicker } from '@/src/components/ui/FormDateTimePicker';
 import { HapticButton } from '@/src/components/ui/HapticButton';
-import { useEventsStore } from '@/src/stores/useEventsStore';
+import { KeyboardAwareFormScrollView } from '@/src/components/ui/KeyboardAwareFormScrollView';
+import { DOT_COLORS, TAG_COLORS } from '@/src/constants/dotColors';
+import { useHaptics } from '@/src/hooks/useHaptics';
+import { useThemeColors } from '@/src/hooks/useThemeColors';
 import { useAccountsStore } from '@/src/stores/useAccountsStore';
 import { useCalendarStore } from '@/src/stores/useCalendarStore';
-import * as Calendar from 'expo-calendar';
-import { CalendarPicker } from '@/src/components/ui/CalendarPicker';
-import { useThemeColors } from '@/src/hooks/useThemeColors';
-import { useHaptics } from '@/src/hooks/useHaptics';
-import { TypeScale } from '@/src/theme/typography';
+import { useEventsStore } from '@/src/stores/useEventsStore';
 import { Spacing } from '@/src/theme/spacing';
-import { DOT_COLORS, TAG_COLORS } from '@/src/constants/dotColors';
-import { ChevronLeft, RefreshCw } from 'lucide-react-native';
-import { FormDateTimePicker } from '@/src/components/ui/FormDateTimePicker';
+import { TypeScale } from '@/src/theme/typography';
 import type { RepeatRule } from '@/src/types/entries';
+import * as Calendar from 'expo-calendar';
+import { useRouter } from 'expo-router';
+import { ChevronLeft } from 'lucide-react-native';
+import React, { useCallback, useState } from 'react';
+import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function AddReminderScreen() {
   const colors = useThemeColors();
@@ -54,7 +55,7 @@ export default function AddReminderScreen() {
           notes,
         });
       } catch (e) {
-        console.warn('Failed to sync to OS calendar', e);
+        console.warn('Failed to sync to Device calendar', e);
       }
     }
 
@@ -83,12 +84,9 @@ export default function AddReminderScreen() {
 
   return (
     <AnimatedScreen style={{ backgroundColor: colors.background }}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView
+      <KeyboardAwareFormScrollView
         style={styles.scrollView}
         contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top }]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
           <HapticButton onPress={() => router.back()} hapticStyle="light" style={styles.backButton}>
@@ -129,7 +127,12 @@ export default function AddReminderScreen() {
         <CalendarPicker value={selectedCalendarId} onChange={(id) => setSelectedCalendarId(id)} />
 
         <Text style={[TypeScale.labelMedium, styles.fieldLabel, { color: colors.onSurfaceVariant }]}>REPEAT</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: Spacing.base, marginBottom: Spacing.compact }}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.repeatScroll}
+          contentContainerStyle={styles.repeatScrollContent}
+        >
           <View style={[styles.segmentRow, { backgroundColor: colors.surfaceVariant }]}>
             {repeatOptions.map((opt) => {
               const isActive = repeat === opt.value;
@@ -178,8 +181,7 @@ export default function AddReminderScreen() {
           multiline
           textAlignVertical="top"
         />
-      </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAwareFormScrollView>
     </AnimatedScreen>
   );
 }
@@ -200,6 +202,14 @@ const styles = StyleSheet.create({
   titleInput: { fontSize: 20, paddingVertical: Spacing.base },
   notesInput: { minHeight: 100 },
   fieldLabel: { paddingHorizontal: Spacing.base, marginTop: Spacing.base, marginBottom: Spacing.small },
+  repeatScroll: {
+    marginHorizontal: Spacing.base,
+    marginBottom: Spacing.compact,
+    flexGrow: 0,
+  },
+  repeatScrollContent: {
+    paddingRight: Spacing.base,
+  },
   segmentRow: {
     flexDirection: 'row',
     borderRadius: 12,

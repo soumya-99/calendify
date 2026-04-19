@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Modal, Pressable, ScrollView } from 'react-native';
-import { useAccountsStore } from '@/src/stores/useAccountsStore';
-import * as Calendar from 'expo-calendar';
 import { useThemeColors } from '@/src/hooks/useThemeColors';
-import { TypeScale } from '@/src/theme/typography';
-import { HapticButton } from './HapticButton';
+import { useAccountsStore } from '@/src/stores/useAccountsStore';
 import { Spacing } from '@/src/theme/spacing';
-import { ChevronDown, CalendarDays } from 'lucide-react-native';
+import { TypeScale } from '@/src/theme/typography';
+import * as Calendar from 'expo-calendar';
+import { ChevronDown } from 'lucide-react-native';
+import React, { useEffect, useState } from 'react';
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { HapticButton } from './HapticButton';
 
 interface CalendarPickerProps {
   value: string;
@@ -33,7 +33,7 @@ export function CalendarPicker({ value, onChange }: CalendarPickerProps) {
     if (value.startsWith('os_')) {
       const id = value.replace('os_', '');
       const cal = deviceCalendars.find((c) => c.id === id);
-      return { title: cal?.title || 'OS Calendar', color: cal?.color || colors.primary };
+      return { title: cal?.title || 'Device Calendar', color: cal?.color || colors.primary };
     } else {
       const acc = accounts.find((a) => a.id === value);
       return { title: acc?.displayName || 'Local Account', color: acc?.avatarColor || colors.primary };

@@ -1,9 +1,10 @@
 import React, { useState, useCallback } from 'react';
-import { StyleSheet, View, ScrollView, Text, TextInput } from 'react-native';
+import { StyleSheet, View, Text, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AnimatedScreen } from '@/src/components/ui/AnimatedScreen';
 import { HapticButton } from '@/src/components/ui/HapticButton';
+import { KeyboardAwareFormScrollView } from '@/src/components/ui/KeyboardAwareFormScrollView';
 import { useEventsStore } from '@/src/stores/useEventsStore';
 import { useAccountsStore } from '@/src/stores/useAccountsStore';
 import { useCalendarStore } from '@/src/stores/useCalendarStore';
@@ -47,10 +48,9 @@ export default function AddBirthdayScreen() {
 
   return (
     <AnimatedScreen style={{ backgroundColor: colors.background }}>
-      <ScrollView
+      <KeyboardAwareFormScrollView
         style={styles.scrollView}
         contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top }]}
-        showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
           <HapticButton onPress={() => router.back()} hapticStyle="light" style={styles.backButton}>
@@ -104,7 +104,7 @@ export default function AddBirthdayScreen() {
           multiline
           textAlignVertical="top"
         />
-      </ScrollView>
+      </KeyboardAwareFormScrollView>
     </AnimatedScreen>
   );
 }

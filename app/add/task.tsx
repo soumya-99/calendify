@@ -1,22 +1,23 @@
-import React, { useState, useCallback } from 'react';
-import { StyleSheet, View, ScrollView, Text, TextInput, KeyboardAvoidingView, Platform } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { AnimatedScreen } from '@/src/components/ui/AnimatedScreen';
+import { CalendarPicker } from '@/src/components/ui/CalendarPicker';
+import { FormDateTimePicker } from '@/src/components/ui/FormDateTimePicker';
 import { HapticButton } from '@/src/components/ui/HapticButton';
-import { useEventsStore } from '@/src/stores/useEventsStore';
+import { KeyboardAwareFormScrollView } from '@/src/components/ui/KeyboardAwareFormScrollView';
+import { DOT_COLORS, TAG_COLORS } from '@/src/constants/dotColors';
+import { useHaptics } from '@/src/hooks/useHaptics';
+import { useThemeColors } from '@/src/hooks/useThemeColors';
 import { useAccountsStore } from '@/src/stores/useAccountsStore';
 import { useCalendarStore } from '@/src/stores/useCalendarStore';
-import * as Calendar from 'expo-calendar';
-import { CalendarPicker } from '@/src/components/ui/CalendarPicker';
-import { useThemeColors } from '@/src/hooks/useThemeColors';
-import { useHaptics } from '@/src/hooks/useHaptics';
-import { TypeScale } from '@/src/theme/typography';
+import { useEventsStore } from '@/src/stores/useEventsStore';
 import { Spacing } from '@/src/theme/spacing';
-import { DOT_COLORS, TAG_COLORS } from '@/src/constants/dotColors';
-import { ChevronLeft } from 'lucide-react-native';
-import { FormDateTimePicker } from '@/src/components/ui/FormDateTimePicker';
+import { TypeScale } from '@/src/theme/typography';
 import type { Priority } from '@/src/types/entries';
+import * as Calendar from 'expo-calendar';
+import { useRouter } from 'expo-router';
+import { ChevronLeft } from 'lucide-react-native';
+import React, { useCallback, useState } from 'react';
+import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const PRIORITY_STYLES: Record<Priority, { color: string; emoji: string }> = {
   LOW: { color: '#43A047', emoji: '🟢' },
@@ -56,7 +57,7 @@ export default function AddTaskScreen() {
           notes: `Priority: ${priority}\n\n${notes}`,
         });
       } catch (e) {
-        console.warn('Failed to sync to OS calendar', e);
+        console.warn('Failed to sync to Device calendar', e);
       }
     }
 
@@ -78,12 +79,9 @@ export default function AddTaskScreen() {
 
   return (
     <AnimatedScreen style={{ backgroundColor: colors.background }}>
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView
+      <KeyboardAwareFormScrollView
         style={styles.scrollView}
         contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top }]}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
       >
         <View style={styles.header}>
           <HapticButton onPress={() => router.back()} hapticStyle="light" style={styles.backButton}>
@@ -165,8 +163,7 @@ export default function AddTaskScreen() {
           multiline
           textAlignVertical="top"
         />
-      </ScrollView>
-      </KeyboardAvoidingView>
+      </KeyboardAwareFormScrollView>
     </AnimatedScreen>
   );
 }
@@ -193,13 +190,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 4,
     gap: 4,
-    alignSelf: 'flex-start',
+    marginHorizontal: Spacing.base,
+    marginBottom: Spacing.compact,
   },
   segmentItem: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     borderRadius: 8,
   },
   colorRow: {
