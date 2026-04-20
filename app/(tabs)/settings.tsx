@@ -29,7 +29,11 @@ import * as Sharing from 'expo-sharing';
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
+  Bell,
+  Cake,
+  CalendarPlus,
   CheckCircle2,
+  CheckSquare,
   ChevronDown,
   Download,
   Info,
@@ -41,7 +45,7 @@ import {
   Sun,
   Trash2,
   Upload,
-  Users
+  Users,
 } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
@@ -175,6 +179,7 @@ export default function SettingsScreen() {
   const entries = useEventsStore((s) => s.entries);
   const addEntry = useEventsStore((s) => s.addEntry);
   const clearAll = useEventsStore((s) => s.clearAll);
+  const clearByType = useEventsStore((s) => s.clearByType);
   const importEntries = useEventsStore((s) => s.importEntries);
 
   const [themePickerVisible, setThemePickerVisible] = useState(false);
@@ -193,6 +198,10 @@ export default function SettingsScreen() {
     setCalActionSheet({ visible: true, cal });
   };
   const closeCalActionSheet = () => setCalActionSheet({ visible: false, cal: null });
+
+  const [clearDataSheetVisible, setClearDataSheetVisible] = useState(false);
+  const openClearDataSheet = () => setClearDataSheetVisible(true);
+  const closeClearDataSheet = () => setClearDataSheetVisible(false);
 
   const [deviceCalendars, setDeviceCalendars] = useState<Calendar.Calendar[]>([]);
 
@@ -454,18 +463,8 @@ export default function SettingsScreen() {
   }, [importEntries, importAccounts, haptics]);
 
   const handleClearData = useCallback(() => {
-    Alert.alert('Clear Data', 'Are you sure you want to clear all local entries?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Clear',
-        style: 'destructive',
-        onPress: () => {
-          clearAll();
-          haptics.heavy();
-        }
-      }
-    ]);
-  }, [clearAll, haptics]);
+    openClearDataSheet();
+  }, []);
 
   const SettingsIcon = ({ icon: Icon, color }: { icon: typeof Sun; color: string }) => (
     <View style={[styles.iconBg, { backgroundColor: getLightBackground(color) }]}>
@@ -599,7 +598,7 @@ export default function SettingsScreen() {
           <Divider inset />
           <SettingsRow
             icon={<SettingsIcon icon={Trash2} color={colors.error} />}
-            label="Clear all data"
+            label="Clear data"
             value="Delete"
             onPress={handleClearData}
           />
@@ -810,6 +809,93 @@ export default function SettingsScreen() {
                   <Text style={[TypeScale.bodySmall, { color: colors.onSurfaceVariant }]}>Fetch events from this calendar</Text>
                 </View>
                 <ChevronDown size={18} color={colors.onSurfaceVariant} strokeWidth={1.5} style={{ transform: [{ rotate: '-90deg' }] }} />
+              </HapticButton>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      {/* Clear Data Bottom Sheet */}
+      <Modal
+        visible={clearDataSheetVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={closeClearDataSheet}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={closeClearDataSheet}>
+          <View />
+        </Pressable>
+        <View style={styles.modalContainer}>
+          <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
+            <View style={[styles.handle, { backgroundColor: colors.outlineVariant }]} />
+            <Text style={[TypeScale.titleLarge, styles.modalTitle, { color: colors.onSurface }]}>
+              Clear Data
+            </Text>
+            <Text style={[TypeScale.bodySmall, { color: colors.onSurfaceVariant, paddingHorizontal: Spacing.small, marginBottom: Spacing.base }]}>
+              Select data type to remove permanently
+            </Text>
+            <View style={[styles.optionsList, { backgroundColor: colors.background }]}>
+              {[
+                { label: 'Reminders', subtitle: 'Remove all pending notifications', icon: Bell, type: 'REMINDER', color: '#FF5252' },
+                { label: 'Events', subtitle: 'Clear all scheduled appointments', icon: CalendarPlus, type: 'EVENT', color: '#42A5F5' },
+                { label: 'Birthdays', subtitle: 'Wipe all saved special dates', icon: Cake, type: 'BIRTHDAY', color: '#EC407A' },
+                { label: 'Tasks', subtitle: 'Remove all to-do items', icon: CheckSquare, type: 'TASK', color: '#66BB6A' },
+              ].map((opt, idx, arr) => (
+                <HapticButton
+                  key={opt.type}
+                  hapticStyle="medium"
+                  onPress={() => {
+                    Alert.alert(opt.label, `Are you sure you want to delete all ${opt.type.toLowerCase()}s?`, [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Delete',
+                        style: 'destructive',
+                        onPress: () => {
+                          clearByType(opt.type as any);
+                          haptics.heavy();
+                          closeClearDataSheet();
+                          Alert.alert('Deleted', `${opt.label} cleared successfully.`);
+                        }
+                      }
+                    ]);
+                  }}
+                  style={[styles.calActionRow, idx < arr.length - 1 ? { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: `${colors.outlineVariant}60` } : {}]}
+                >
+                  <View style={[styles.calActionIcon, { backgroundColor: `${opt.color}18` }]}>
+                    <opt.icon size={22} color={opt.color} strokeWidth={1.75} />
+                  </View>
+                  <View style={styles.calActionText}>
+                    <Text style={[TypeScale.titleSmall, { color: colors.onSurface }]}>{opt.label}</Text>
+                    <Text style={[TypeScale.bodySmall, { color: colors.onSurfaceVariant }]}>{opt.subtitle}</Text>
+                  </View>
+                </HapticButton>
+              ))}
+              <Divider />
+              <HapticButton
+                hapticStyle="heavy"
+                onPress={() => {
+                  Alert.alert('Delete All Data', 'This will wipe all locally stored entries. This cannot be undone.', [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Delete All',
+                      style: 'destructive',
+                      onPress: () => {
+                        clearAll();
+                        haptics.heavy();
+                        closeClearDataSheet();
+                        Alert.alert('Deleted', 'All application data has been cleared.');
+                      }
+                    }
+                  ]);
+                }}
+                style={styles.calActionRow}
+              >
+                <View style={[styles.calActionIcon, { backgroundColor: `${colors.error}18` }]}>
+                  <Trash2 size={22} color={colors.error} strokeWidth={1.75} />
+                </View>
+                <View style={styles.calActionText}>
+                  <Text style={[TypeScale.titleSmall, { color: colors.error }]}>Delete All Data</Text>
+                  <Text style={[TypeScale.bodySmall, { color: colors.onSurfaceVariant }]}>Factory reset application database</Text>
+                </View>
               </HapticButton>
             </View>
           </View>

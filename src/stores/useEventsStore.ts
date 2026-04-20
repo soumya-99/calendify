@@ -1,17 +1,17 @@
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import { mmkvStorage } from '@/src/hooks/useMMKV';
 import { MMKV_KEYS } from '@/src/constants/mmkvKeys';
+import { mmkvStorage } from '@/src/hooks/useMMKV';
 import type {
   AnyEntry,
+  Birthday,
+  CalendarEvent,
+  EntryType,
   Reminder,
   Task,
-  CalendarEvent,
-  Birthday,
-  EntryType,
 } from '@/src/types/entries';
-import { generateId } from '@/src/utils/generateId';
 import { nowISO } from '@/src/utils/dateHelpers';
+import { generateId } from '@/src/utils/generateId';
+import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
 
 interface EventsState {
   entries: AnyEntry[];
@@ -24,6 +24,7 @@ interface EventsState {
   // Bulk operations
   importEntries: (entries: AnyEntry[], replace?: boolean) => void;
   clearAll: () => void;
+  clearByType: (type: EntryType) => void;
 
   // Selectors
   getEntriesByDate: (date: string) => AnyEntry[];
@@ -43,8 +44,11 @@ export const useEventsStore = create<EventsState>()(
   persist(
     (set, get) => ({
       entries: [],
-      
+
       clearAll: () => set({ entries: [] }),
+      clearByType: (type) => set((state) => ({
+        entries: state.entries.filter((e) => e.type !== type)
+      })),
 
       addEntry: (entry: Record<string, unknown>) => {
         const id = generateId();
