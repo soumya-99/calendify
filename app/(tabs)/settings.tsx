@@ -5,10 +5,14 @@ import { Divider } from '@/src/components/ui/Divider';
 import { HapticButton } from '@/src/components/ui/HapticButton';
 import { SectionHeader } from '@/src/components/ui/SectionHeader';
 import { SettingsRow } from '@/src/components/ui/SettingsRow';
+import NotificationSettingsSheet, {
+  type NotificationSettingsSheetRef,
+} from '@/src/components/sheets/NotificationSettingsSheet';
 import { useHaptics } from '@/src/hooks/useHaptics';
 import { useThemeColors } from '@/src/hooks/useThemeColors';
 import { useAccountsStore } from '@/src/stores/useAccountsStore';
 import { useEventsStore } from '@/src/stores/useEventsStore';
+import { useNotificationStore } from '@/src/stores/useNotificationStore';
 import { useThemeStore } from '@/src/stores/useThemeStore';
 import { Spacing } from '@/src/theme/spacing';
 import { TypeScale } from '@/src/theme/typography';
@@ -47,7 +51,7 @@ import {
   Upload,
   Users,
 } from 'lucide-react-native';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -165,6 +169,7 @@ export default function SettingsScreen() {
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
   const haptics = useHaptics();
+  const notifSheetRef = useRef<NotificationSettingsSheetRef>(null);
 
   const themeMode = useThemeStore((s) => s.themeMode);
   const colorScheme = useThemeStore((s) => s.colorScheme);
@@ -181,6 +186,18 @@ export default function SettingsScreen() {
   const clearAll = useEventsStore((s) => s.clearAll);
   const clearByType = useEventsStore((s) => s.clearByType);
   const importEntries = useEventsStore((s) => s.importEntries);
+
+  const { masterEnabled, remindersEnabled, eventsEnabled, birthdaysEnabled } = useNotificationStore();
+
+  const activeNotifsCount = [remindersEnabled, eventsEnabled, birthdaysEnabled].filter(Boolean).length;
+  const notifSummaryText = !masterEnabled
+    ? 'Off'
+    : activeNotifsCount === 3
+    ? 'All on'
+    : activeNotifsCount === 0
+    ? 'All off'
+    : `${activeNotifsCount} of 3 on`;
+
 
   const [themePickerVisible, setThemePickerVisible] = useState(false);
   const [colorPickerVisible, setColorPickerVisible] = useState(false);
@@ -580,6 +597,17 @@ export default function SettingsScreen() {
           />
         </View>
 
+        {/* NOTIFICATIONS */}
+        <SectionHeader title="NOTIFICATIONS" />
+        <View style={[styles.card, { backgroundColor: colors.surface }]}>
+          <SettingsRow
+            icon={<SettingsIcon icon={Bell} color={colors.primary} />}
+            label="Notification preferences"
+            value={notifSummaryText}
+            onPress={() => notifSheetRef.current?.open()}
+          />
+        </View>
+
         <SectionHeader title="DATA MANAGEMENT" />
         <View style={[styles.card, { backgroundColor: colors.surface }]}>
           <SettingsRow
@@ -901,6 +929,7 @@ export default function SettingsScreen() {
           </View>
         </View>
       </Modal>
+      <NotificationSettingsSheet ref={notifSheetRef} />
     </AnimatedScreen>
   );
 }

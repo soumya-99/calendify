@@ -12,6 +12,7 @@ import { nowISO } from '@/src/utils/dateHelpers';
 import { generateId } from '@/src/utils/generateId';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import { NotificationService } from '@/src/services/NotificationService';
 
 interface EventsState {
   entries: AnyEntry[];
@@ -55,6 +56,7 @@ export const useEventsStore = create<EventsState>()(
         const now = nowISO();
         const newEntry = { ...entry, id, createdAt: now, updatedAt: now } as unknown as AnyEntry;
         set((state) => ({ entries: [...state.entries, newEntry] as AnyEntry[] }));
+        NotificationService.scheduleEntry(newEntry);
         return id;
       },
 
@@ -64,12 +66,15 @@ export const useEventsStore = create<EventsState>()(
             e.id === id ? ({ ...e, ...updates, updatedAt: nowISO() } as AnyEntry) : e
           ),
         }));
+        const updated = get().entries.find((e) => e.id === id);
+        if (updated) NotificationService.scheduleEntry(updated);
       },
 
       deleteEntry: (id) => {
         set((state) => ({
           entries: state.entries.filter((e) => e.id !== id),
         }));
+        NotificationService.cancelEntry(id);
       },
 
       importEntries: (entries, replace = false) => {
