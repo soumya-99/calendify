@@ -24,7 +24,7 @@ export function EventCard({ event, onPress }: EventCardProps) {
       subtitle={
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
           <Text style={[TypeScale.bodySmall, { color: colors.onSurfaceVariant }]}>
-            {formatTime(event.startTime)} – {formatTime(event.endTime)}
+            {event.allDay ? 'All Day' : `${formatTime(event.startTime)} – ${formatTime(event.endTime)}`}
           </Text>
           {event.location && (
             <>
