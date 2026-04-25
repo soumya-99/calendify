@@ -1,23 +1,20 @@
-import React, { useEffect } from 'react';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { useColorScheme, StyleSheet } from 'react-native';
-import 'react-native-reanimated';
-import { useThemeStore } from '@/src/stores/useThemeStore';
 import { useThemeColors } from '@/src/hooks/useThemeColors';
-import { useAccountsStore } from '@/src/stores/useAccountsStore';
-import { useSettingsStore } from '@/src/stores/useSettingsStore';
-import { create } from 'zustand';
-import { ActivityIndicator, Text, View } from 'react-native';
-import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
-import { AppState, type AppStateStatus } from 'react-native';
-import * as Notifications from 'expo-notifications';
-import { useRouter } from 'expo-router';
-import { registerBackgroundSync } from '@/src/tasks/backgroundSyncTask';
 import { NotificationService } from '@/src/services/NotificationService';
+import { useAccountsStore } from '@/src/stores/useAccountsStore';
 import { useEventsStore } from '@/src/stores/useEventsStore';
 import { useNotificationStore } from '@/src/stores/useNotificationStore';
+import { useSettingsStore } from '@/src/stores/useSettingsStore';
+import { useThemeStore } from '@/src/stores/useThemeStore';
+import { registerBackgroundSync } from '@/src/tasks/backgroundSyncTask';
+import * as Notifications from 'expo-notifications';
+import { Stack, useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import React, { useEffect } from 'react';
+import { ActivityIndicator, AppState, StyleSheet, Text, useColorScheme, View, type AppStateStatus } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import 'react-native-reanimated';
+import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import { create } from 'zustand';
 
 export const useLoaderStore = create<{ isLoading: boolean; show: () => void; hide: () => void }>((set) => ({
   isLoading: false,
@@ -28,9 +25,9 @@ export const useLoaderStore = create<{ isLoading: boolean; show: () => void; hid
 function GlobalLoader() {
   const isLoading = useLoaderStore((s) => s.isLoading);
   const colors = useThemeColors();
-  
+
   if (!isLoading) return null;
-  
+
   return (
     <Animated.View
       entering={FadeIn.duration(200)}
@@ -71,17 +68,15 @@ function RootLayoutInner() {
 
   // Notifications Lifecycle
   useEffect(() => {
-    // 1. Sync permission status to store
-    NotificationService.getPermissionStatus().then((status) => {
-      if (status !== 'granted') {
-        useNotificationStore.getState().setMasterEnabled(false);
+    // 1. Request permissions on start
+    NotificationService.requestPermissions().then((status) => {
+      if (status === 'granted') {
+        // Register background sync only if granted
+        registerBackgroundSync();
       }
     });
 
-    // 2. Register background sync
-    registerBackgroundSync();
-
-    // 3. Initial sync
+    // 2. Initial sync
     NotificationService.syncAll(entries);
 
     // 4. Foreground re-sync

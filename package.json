@@ -27,7 +27,6 @@
     "@shopify/flash-list": "2.0.2",
     "dayjs": "^1.11.20",
     "expo": "^55.0.15",
-    "expo-background-fetch": "~55.0.14",
     "expo-background-task": "~55.0.16",
     "expo-calendar": "~55.0.14",
     "expo-constants": "~55.0.14",
