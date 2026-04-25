@@ -126,7 +126,7 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.45)',
   },
   modalContainer: {

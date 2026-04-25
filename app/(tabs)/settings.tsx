@@ -1,13 +1,13 @@
 import { useLoaderStore } from '@/app/_layout';
+import NotificationSettingsSheet, {
+  type NotificationSettingsSheetRef,
+} from '@/src/components/sheets/NotificationSettingsSheet';
 import { AnimatedScreen } from '@/src/components/ui/AnimatedScreen';
 import { Avatar } from '@/src/components/ui/Avatar';
 import { Divider } from '@/src/components/ui/Divider';
 import { HapticButton } from '@/src/components/ui/HapticButton';
 import { SectionHeader } from '@/src/components/ui/SectionHeader';
 import { SettingsRow } from '@/src/components/ui/SettingsRow';
-import NotificationSettingsSheet, {
-  type NotificationSettingsSheetRef,
-} from '@/src/components/sheets/NotificationSettingsSheet';
 import { useHaptics } from '@/src/hooks/useHaptics';
 import { useThemeColors } from '@/src/hooks/useThemeColors';
 import { useAccountsStore } from '@/src/stores/useAccountsStore';
@@ -193,10 +193,10 @@ export default function SettingsScreen() {
   const notifSummaryText = !masterEnabled
     ? 'Off'
     : activeNotifsCount === 3
-    ? 'All on'
-    : activeNotifsCount === 0
-    ? 'All off'
-    : `${activeNotifsCount} of 3 on`;
+      ? 'All on'
+      : activeNotifsCount === 0
+        ? 'All off'
+        : `${activeNotifsCount} of 3 on`;
 
 
   const [themePickerVisible, setThemePickerVisible] = useState(false);
@@ -602,7 +602,7 @@ export default function SettingsScreen() {
         <View style={[styles.card, { backgroundColor: colors.surface }]}>
           <SettingsRow
             icon={<SettingsIcon icon={Bell} color={colors.primary} />}
-            label="Notification preferences"
+            label="Notification Preferences"
             value={notifSummaryText}
             onPress={() => notifSheetRef.current?.open()}
           />
@@ -612,21 +612,21 @@ export default function SettingsScreen() {
         <View style={[styles.card, { backgroundColor: colors.surface }]}>
           <SettingsRow
             icon={<SettingsIcon icon={Upload} color={ICON_COLORS.exportCalendify} />}
-            label="Export data"
+            label="Export Data"
             value="Backup"
             onPress={handleExportData}
           />
           <Divider inset />
           <SettingsRow
             icon={<SettingsIcon icon={Download} color={ICON_COLORS.importCalendify} />}
-            label="Import data"
+            label="Import Data"
             value="Restore"
             onPress={handleImportData}
           />
           <Divider inset />
           <SettingsRow
             icon={<SettingsIcon icon={Trash2} color={colors.error} />}
-            label="Clear data"
+            label="Clear Data"
             value="Delete"
             onPress={handleClearData}
           />
@@ -989,7 +989,7 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: { height: 40 },
   modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.45)',
   },
   modalContainer: {

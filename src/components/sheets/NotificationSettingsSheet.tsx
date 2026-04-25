@@ -1,20 +1,20 @@
+import { Divider } from '@/src/components/ui/Divider';
+import { useNotificationSettings } from '@/src/hooks/useNotificationSettings';
+import { useThemeColors } from '@/src/hooks/useThemeColors';
+import { ShapeScale } from '@/src/theme/motion';
+import { Spacing } from '@/src/theme/spacing';
+import { TypeScale } from '@/src/theme/typography';
+import { Bell, Cake, CalendarPlus, Info } from 'lucide-react-native';
 import React, { forwardRef, useImperativeHandle, useState } from 'react';
 import {
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
+  Switch,
   Text,
   View,
-  Switch,
-  Platform,
 } from 'react-native';
-import { Bell, CalendarPlus, Cake, Info } from 'lucide-react-native';
-import { useThemeColors } from '@/src/hooks/useThemeColors';
-import { TypeScale } from '@/src/theme/typography';
-import { Spacing } from '@/src/theme/spacing';
-import { ShapeScale } from '@/src/theme/motion';
-import { useNotificationSettings } from '@/src/hooks/useNotificationSettings';
-import { Divider } from '@/src/components/ui/Divider';
 
 export interface NotificationSettingsSheetRef {
   open: () => void;
@@ -56,11 +56,11 @@ const NotificationSettingsSheet = forwardRef<NotificationSettingsSheetRef>((_, r
       <View style={styles.container}>
         <View style={[styles.sheet, { backgroundColor: colors.surface }]}>
           <View style={[styles.handle, { backgroundColor: colors.outlineVariant }]} />
-          
+
           <Text style={[TypeScale.titleLarge, styles.title, { color: colors.onSurface }]}>
             Notifications
           </Text>
-          
+
           <View style={[styles.masterRow, { backgroundColor: masterEnabled ? `${colors.primary}10` : colors.surfaceVariant }]}>
             <View style={styles.masterInfo}>
               <Text style={[TypeScale.titleMedium, { color: masterEnabled ? colors.primary : colors.onSurface }]}>
@@ -91,11 +91,12 @@ const NotificationSettingsSheet = forwardRef<NotificationSettingsSheetRef>((_, r
                 value={remindersEnabled}
                 onValueChange={handleRemindersToggle}
                 trackColor={{ false: colors.outline, true: colors.primary }}
+                thumbColor={Platform.OS === 'ios' ? undefined : (remindersEnabled ? colors.onPrimary : colors.surface)}
               />
             </View>
-            
+
             <Divider inset />
-            
+
             <View style={styles.optionRow}>
               <View style={[styles.iconBox, { backgroundColor: '#1E88E520' }]}>
                 <CalendarPlus size={20} color="#1E88E5" strokeWidth={2} />
@@ -108,6 +109,7 @@ const NotificationSettingsSheet = forwardRef<NotificationSettingsSheetRef>((_, r
                 value={eventsEnabled}
                 onValueChange={handleEventsToggle}
                 trackColor={{ false: colors.outline, true: colors.primary }}
+                thumbColor={Platform.OS === 'ios' ? undefined : (eventsEnabled ? colors.onPrimary : colors.surface)}
               />
             </View>
 
@@ -125,6 +127,7 @@ const NotificationSettingsSheet = forwardRef<NotificationSettingsSheetRef>((_, r
                 value={birthdaysEnabled}
                 onValueChange={handleBirthdaysToggle}
                 trackColor={{ false: colors.outline, true: colors.primary }}
+                thumbColor={Platform.OS === 'ios' ? undefined : (birthdaysEnabled ? colors.onPrimary : colors.surface)}
               />
             </View>
           </View>
@@ -137,13 +140,6 @@ const NotificationSettingsSheet = forwardRef<NotificationSettingsSheetRef>((_, r
               </Text>
             </View>
           )}
-
-          <Pressable 
-            style={[styles.closeButton, { backgroundColor: colors.surfaceVariant }]} 
-            onPress={close}
-          >
-            <Text style={[TypeScale.labelLarge, { color: colors.onSurfaceVariant }]}>Close</Text>
-          </Pressable>
         </View>
       </View>
     </Modal>
@@ -152,28 +148,32 @@ const NotificationSettingsSheet = forwardRef<NotificationSettingsSheetRef>((_, r
 
 const styles = StyleSheet.create({
   backdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(0,0,0,0.45)',
   },
   container: {
-    flex: 1,
-    justifyContent: 'flex-end',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
   },
   sheet: {
-    borderTopLeftRadius: ShapeScale.extraLarge.borderRadius,
-    borderTopRightRadius: ShapeScale.extraLarge.borderRadius,
-    padding: Spacing.base,
-    paddingBottom: Platform.OS === 'ios' ? Spacing.hero : Spacing.base,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingHorizontal: Spacing.base,
+    paddingBottom: 40,
+    paddingTop: Spacing.compact,
   },
   handle: {
-    width: 40,
+    width: 36,
     height: 4,
     borderRadius: 2,
     alignSelf: 'center',
-    marginBottom: Spacing.base,
+    marginBottom: Spacing.section,
   },
   title: {
     marginBottom: Spacing.base,
+    paddingHorizontal: Spacing.small,
     textAlign: 'center',
   },
   masterRow: {
@@ -215,11 +215,6 @@ const styles = StyleSheet.create({
   },
   infoText: {
     marginLeft: Spacing.small,
-  },
-  closeButton: {
-    padding: Spacing.base,
-    borderRadius: ShapeScale.large.borderRadius,
-    alignItems: 'center',
   },
 });
 

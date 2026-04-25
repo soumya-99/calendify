@@ -27,7 +27,6 @@ async function ensureChannels(): Promise<void> {
     importance: Notifications.AndroidImportance.MAX,
     vibrationPattern: [0, 300, 150, 300],
     lightColor: '#FFB300',
-    sound: 'default',
   });
 
   await Notifications.setNotificationChannelAsync('events', {
@@ -36,7 +35,6 @@ async function ensureChannels(): Promise<void> {
     importance: Notifications.AndroidImportance.HIGH,
     vibrationPattern: [0, 250],
     lightColor: '#1E88E5',
-    sound: 'default',
   });
 
   await Notifications.setNotificationChannelAsync('birthdays', {
@@ -45,7 +43,6 @@ async function ensureChannels(): Promise<void> {
     importance: Notifications.AndroidImportance.DEFAULT,
     vibrationPattern: [0, 200, 100, 200],
     lightColor: '#E64A19',
-    sound: 'default',
   });
 }
 
@@ -121,7 +118,7 @@ export class NotificationService {
       title: this.buildTitle(entry),
       body: this.buildBody(entry),
       data: { entryId: entry.id, entryType: entry.type, date: entry.date },
-      sound: 'default',
+      sound: true,
       color: COLOR_MAP[entry.type] ?? '#4CAF9A',
     };
 
