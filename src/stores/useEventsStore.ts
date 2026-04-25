@@ -63,13 +63,19 @@ export const useEventsStore = create<EventsState>()(
 
       addEntries: async (entriesToImport: Record<string, unknown>[]) => {
         const now = nowISO();
-        const newEntries = entriesToImport.map(e => ({
-          ...e,
-          id: generateId(),
-          createdAt: now,
-          updatedAt: now
-        })) as unknown as AnyEntry[];
+        const existingOsIds = new Set(get().entries.filter(e => e.osId).map(e => e.osId));
         
+        const newEntries = entriesToImport
+          .filter(e => !e.osId || !existingOsIds.has(e.osId as string))
+          .map(e => ({
+            ...e,
+            id: generateId(),
+            createdAt: now,
+            updatedAt: now
+          })) as unknown as AnyEntry[];
+        
+        if (newEntries.length === 0) return;
+
         set((state) => ({ entries: [...state.entries, ...newEntries] as AnyEntry[] }));
         await NotificationService.syncAll(get().entries);
       },

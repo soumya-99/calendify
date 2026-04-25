@@ -13,6 +13,7 @@ export interface CalendarEntry {
   colorTag: string; // hex color for dot indicator
   notes?: string;
   notificationTime?: string; // ISO 8601 timestamp for custom notification
+  osId?: string; // ID from external source (Device Calendar/Contacts)
   createdAt: string; // ISO timestamp
   updatedAt: string;
 }

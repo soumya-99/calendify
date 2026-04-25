@@ -344,23 +344,27 @@ export default function SettingsScreen() {
             const end = new Date();
             end.setFullYear(end.getFullYear() + 1);
             const osEvents = await Calendar.getEventsAsync([cal.id], start, end);
-            
-            const toImport = osEvents.map(ev => {
-              const evDate = new Date(ev.startDate);
-              const evEnd = new Date(ev.endDate);
-              return {
-                type: 'EVENT',
-                title: ev.title || 'Untitled Event',
-                date: evDate.toISOString().split('T')[0],
-                startTime: evDate.toTimeString().slice(0, 5),
-                endTime: evEnd.toTimeString().slice(0, 5),
-                location: ev.location,
-                allDay: ev.allDay,
-                notes: ev.notes,
-                colorTag: '#4285F4',
-                accountId: 'local',
-              };
-            });
+
+            const existingOsIds = new Set(entries.filter(e => e.osId).map(e => e.osId));
+            const toImport = osEvents
+              .filter(ev => !existingOsIds.has(ev.id))
+              .map(ev => {
+                const evDate = new Date(ev.startDate);
+                const evEnd = new Date(ev.endDate);
+                return {
+                  type: 'EVENT',
+                  title: ev.title || 'Untitled Event',
+                  date: evDate.toISOString().split('T')[0],
+                  startTime: evDate.toTimeString().slice(0, 5),
+                  endTime: evEnd.toTimeString().slice(0, 5),
+                  location: ev.location,
+                  allDay: ev.allDay,
+                  notes: ev.notes,
+                  colorTag: '#4285F4',
+                  accountId: 'local',
+                  osId: ev.id,
+                };
+              });
 
             if (toImport.length > 0) {
               await addEntries(toImport);
@@ -401,21 +405,25 @@ export default function SettingsScreen() {
             text: 'Import',
             onPress: async () => {
               const defaultAccount = accounts.find((a) => a.isDefault);
-              const toImport = contactsWithBirthdays.map(contact => {
-                const bday = contact.birthday!;
-                if (!bday.month || !bday.day) return null;
-                const year = bday.year ?? new Date().getFullYear();
-                const month = String(bday.month).padStart(2, '0');
-                const day = String(bday.day).padStart(2, '0');
-                const dateStr = `${year}-${month}-${day}`;
-                return {
-                  type: 'BIRTHDAY',
-                  title: contact.name || 'Unknown',
-                  personName: contact.name || 'Unknown',
-                  date: dateStr,
-                  accountId: defaultAccount?.id ?? 'local',
-                };
-              }).filter((b): b is any => b !== null);
+              const existingOsIds = new Set(entries.filter(e => e.osId).map(e => e.osId));
+              const toImport = contactsWithBirthdays
+                .filter(contact => !existingOsIds.has(contact.id))
+                .map(contact => {
+                  const bday = contact.birthday!;
+                  if (!bday.month || !bday.day) return null;
+                  const year = bday.year ?? new Date().getFullYear();
+                  const month = String(bday.month).padStart(2, '0');
+                  const day = String(bday.day).padStart(2, '0');
+                  const dateStr = `${year}-${month}-${day}`;
+                  return {
+                    type: 'BIRTHDAY',
+                    title: contact.name || 'Unknown',
+                    personName: contact.name || 'Unknown',
+                    date: dateStr,
+                    accountId: defaultAccount?.id ?? 'local',
+                    osId: contact.id,
+                  };
+                }).filter((b): b is any => b !== null);
 
               if (toImport.length > 0) {
                 await addEntries(toImport);
