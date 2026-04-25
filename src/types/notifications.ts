@@ -6,6 +6,8 @@ export interface NotificationPreferences {
   remindersEnabled: boolean;  // REMINDER type
   eventsEnabled:    boolean;  // EVENT type
   birthdaysEnabled: boolean;  // BIRTHDAY type
+  holidaysEnabled: boolean;   // HOLIDAY type
+  holidayCountry?: string;    // Selected country code (e.g. 'IN')
 }
 
 /** Stored per scheduled notification so we can cancel it later */

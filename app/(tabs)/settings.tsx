@@ -2,6 +2,9 @@ import { useLoaderStore } from '@/app/_layout';
 import NotificationSettingsSheet, {
   type NotificationSettingsSheetRef,
 } from '@/src/components/sheets/NotificationSettingsSheet';
+import HolidaySettingsSheet, {
+  type HolidaySettingsSheetRef,
+} from '@/src/components/sheets/HolidaySettingsSheet';
 import { AnimatedScreen } from '@/src/components/ui/AnimatedScreen';
 import { Avatar } from '@/src/components/ui/Avatar';
 import { Divider } from '@/src/components/ui/Divider';
@@ -16,6 +19,7 @@ import { useNotificationStore } from '@/src/stores/useNotificationStore';
 import { useThemeStore } from '@/src/stores/useThemeStore';
 import { Spacing } from '@/src/theme/spacing';
 import { TypeScale } from '@/src/theme/typography';
+import { HolidayService } from '@/src/services/HolidayService';
 import type { Account } from '@/src/types/accounts';
 import type { ColorSchemeChoice, ThemeMode } from '@/src/types/theme';
 import {
@@ -40,6 +44,7 @@ import {
   CheckSquare,
   ChevronDown,
   Download,
+  Globe,
   Info,
   Moon,
   Palette,
@@ -60,6 +65,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -170,6 +176,7 @@ export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const haptics = useHaptics();
   const notifSheetRef = useRef<NotificationSettingsSheetRef>(null);
+  const holidaySheetRef = useRef<HolidaySettingsSheetRef>(null);
 
   const themeMode = useThemeStore((s) => s.themeMode);
   const colorScheme = useThemeStore((s) => s.colorScheme);
@@ -188,16 +195,24 @@ export default function SettingsScreen() {
   const importEntries = useEventsStore((s) => s.importEntries);
   const addEntries = useEventsStore((s) => s.addEntries);
 
-  const { masterEnabled, remindersEnabled, eventsEnabled, birthdaysEnabled } = useNotificationStore();
+  const {
+    masterEnabled,
+    remindersEnabled,
+    eventsEnabled,
+    birthdaysEnabled,
+    holidaysEnabled,
+    holidayCountry,
+    setHolidaysEnabled,
+  } = useNotificationStore();
 
-  const activeNotifsCount = [remindersEnabled, eventsEnabled, birthdaysEnabled].filter(Boolean).length;
+  const activeNotifsCount = [remindersEnabled, eventsEnabled, birthdaysEnabled, holidaysEnabled].filter(Boolean).length;
   const notifSummaryText = !masterEnabled
     ? 'Off'
-    : activeNotifsCount === 3
+    : activeNotifsCount === 4
       ? 'All on'
       : activeNotifsCount === 0
         ? 'All off'
-        : `${activeNotifsCount} of 3 on`;
+        : `${activeNotifsCount} of 4 on`;
 
 
   const [themePickerVisible, setThemePickerVisible] = useState(false);
@@ -624,6 +639,16 @@ export default function SettingsScreen() {
           />
         </View>
 
+        <SectionHeader title="CALENDAR PREFERENCES" />
+        <View style={[styles.card, { backgroundColor: colors.surface }]}>
+          <SettingsRow
+            icon={<SettingsIcon icon={Globe} color="#4DB6AC" />}
+            label="Regional Holidays"
+            value={holidaysEnabled ? (holidayCountry || 'Auto') : 'Off'}
+            onPress={() => holidaySheetRef.current?.open()}
+          />
+        </View>
+
         <SectionHeader title="DATA MANAGEMENT" />
         <View style={[styles.card, { backgroundColor: colors.surface }]}>
           <SettingsRow
@@ -946,6 +971,7 @@ export default function SettingsScreen() {
         </View>
       </Modal>
       <NotificationSettingsSheet ref={notifSheetRef} />
+      <HolidaySettingsSheet ref={holidaySheetRef} />
     </AnimatedScreen>
   );
 }
@@ -1089,5 +1115,17 @@ const styles = StyleSheet.create({
   calActionText: {
     flex: 1,
     gap: 2,
+  },
+  holidayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.base,
+    paddingVertical: 14,
+  },
+  left: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
 });

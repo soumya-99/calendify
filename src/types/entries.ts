@@ -1,4 +1,4 @@
-export type EntryType = 'REMINDER' | 'TASK' | 'EVENT' | 'BIRTHDAY';
+export type EntryType = 'REMINDER' | 'TASK' | 'EVENT' | 'BIRTHDAY' | 'HOLIDAY';
 
 export type RepeatRule = 'NONE' | 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
 

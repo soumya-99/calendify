@@ -1,6 +1,7 @@
 import { CalendarGrid } from '@/src/components/calendar/CalendarGrid';
 import { BirthdayCard } from '@/src/components/cards/BirthdayCard';
 import { EventCard } from '@/src/components/cards/EventCard';
+import { HolidayCard } from '@/src/components/cards/HolidayCard';
 import { ReminderCard } from '@/src/components/cards/ReminderCard';
 import { TaskCard } from '@/src/components/cards/TaskCard';
 import { AnimatedScreen } from '@/src/components/ui/AnimatedScreen';
@@ -91,6 +92,10 @@ export default function HomeScreen() {
     () => selectedDateEntries.filter((e): e is Birthday => e.type === 'BIRTHDAY'),
     [selectedDateEntries]
   );
+  const holidays = useMemo(
+    () => selectedDateEntries.filter((e) => e.type === 'HOLIDAY'),
+    [selectedDateEntries]
+  );
 
   const hasEntries = selectedDateEntries.length > 0;
 
@@ -132,6 +137,18 @@ export default function HomeScreen() {
             subtitle="Tap + to add a reminder, task, event, or birthday"
             style={styles.emptyState}
           />
+        )}
+
+        {holidays.length > 0 && (
+          <>
+            <SectionHeader title="Holidays" color={DOT_COLORS.HOLIDAY} />
+            {holidays.map((holiday) => (
+              <HolidayCard
+                key={holiday.id}
+                holiday={holiday}
+              />
+            ))}
+          </>
         )}
 
         {events.length > 0 && (

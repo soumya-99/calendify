@@ -9,6 +9,8 @@ interface NotificationStore extends NotificationPreferences {
   setRemindersEnabled: (val: boolean) => void;
   setEventsEnabled:    (val: boolean) => void;
   setBirthdaysEnabled: (val: boolean) => void;
+  setHolidaysEnabled:  (val: boolean) => void;
+  setHolidayCountry:   (val: string) => void;
   setAllPrefs:         (prefs: Partial<NotificationPreferences>) => void;
   reset:               () => void;
 }
@@ -18,6 +20,8 @@ const DEFAULT_PREFS: NotificationPreferences = {
   remindersEnabled: true,   // default on — active once master is granted
   eventsEnabled:    true,
   birthdaysEnabled: true,
+  holidaysEnabled:  false,
+  holidayCountry:   undefined,
 };
 
 export const useNotificationStore = create<NotificationStore>()(
@@ -28,6 +32,8 @@ export const useNotificationStore = create<NotificationStore>()(
       setRemindersEnabled: (val) => set({ remindersEnabled: val }),
       setEventsEnabled:    (val) => set({ eventsEnabled: val }),
       setBirthdaysEnabled: (val) => set({ birthdaysEnabled: val }),
+      setHolidaysEnabled:  (val) => set({ holidaysEnabled: val }),
+      setHolidayCountry:   (val) => set({ holidayCountry: val }),
       setAllPrefs:         (prefs) => set(prefs),
       reset:               () => set(DEFAULT_PREFS),
     }),
