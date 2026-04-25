@@ -18,6 +18,9 @@ export class HolidayService {
       return;
     }
 
+    // Clear existing holidays before fetching new ones to avoid multi-region accumulation
+    useEventsStore.getState().clearByType('HOLIDAY');
+
     let country = holidayCountry;
     if (!country) {
       country = Localization.getLocales()[0]?.regionCode ?? 'IN';

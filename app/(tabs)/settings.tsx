@@ -1,10 +1,10 @@
 import { useLoaderStore } from '@/app/_layout';
-import NotificationSettingsSheet, {
-  type NotificationSettingsSheetRef,
-} from '@/src/components/sheets/NotificationSettingsSheet';
 import HolidaySettingsSheet, {
   type HolidaySettingsSheetRef,
 } from '@/src/components/sheets/HolidaySettingsSheet';
+import NotificationSettingsSheet, {
+  type NotificationSettingsSheetRef,
+} from '@/src/components/sheets/NotificationSettingsSheet';
 import { AnimatedScreen } from '@/src/components/ui/AnimatedScreen';
 import { Avatar } from '@/src/components/ui/Avatar';
 import { Divider } from '@/src/components/ui/Divider';
@@ -19,8 +19,8 @@ import { useNotificationStore } from '@/src/stores/useNotificationStore';
 import { useThemeStore } from '@/src/stores/useThemeStore';
 import { Spacing } from '@/src/theme/spacing';
 import { TypeScale } from '@/src/theme/typography';
-import { HolidayService } from '@/src/services/HolidayService';
 import type { Account } from '@/src/types/accounts';
+import type { Birthday } from '@/src/types/entries';
 import type { ColorSchemeChoice, ThemeMode } from '@/src/types/theme';
 import {
   CALENDIFY_BACKUP_FILENAME,
@@ -65,10 +65,9 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
-  View,
+  View
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import Animated, { Easing, interpolate, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -194,6 +193,8 @@ export default function SettingsScreen() {
   const clearByType = useEventsStore((s) => s.clearByType);
   const importEntries = useEventsStore((s) => s.importEntries);
   const addEntries = useEventsStore((s) => s.addEntries);
+  const updateEntry = useEventsStore((s) => s.updateEntry);
+  const defaultAccount = useMemo(() => accounts.find(a => a.isDefault), [accounts]);
 
   const {
     masterEnabled,
@@ -419,41 +420,68 @@ export default function SettingsScreen() {
           {
             text: 'Import',
             onPress: async () => {
-              const defaultAccount = accounts.find((a) => a.isDefault);
-              const existingOsIds = new Set(entries.filter(e => e.osId).map(e => e.osId));
-              const toImport = contactsWithBirthdays
-                .filter(contact => !existingOsIds.has(contact.id))
-                .map(contact => {
-                  const bday = contact.birthday!;
-                  if (!bday.month || !bday.day) return null;
-                  const year = bday.year ?? new Date().getFullYear();
-                  const month = String(bday.month).padStart(2, '0');
-                  const day = String(bday.day).padStart(2, '0');
-                  const dateStr = `${year}-${month}-${day}`;
-                  return {
+              const toImport: any[] = [];
+              const toUpdate: { id: string; updates: any }[] = [];
+
+              for (const contact of contactsWithBirthdays) {
+                const bday = contact.birthday!;
+                if (!bday.month || !bday.day) continue;
+
+                // Ensure we have a consistent year for the date string (even if birthYear is unknown)
+                const year = bday.year || new Date().getFullYear();
+                const month = String(bday.month).padStart(2, '0');
+                const day = String(bday.day).padStart(2, '0');
+                const dateStr = `${year}-${month}-${day}`;
+
+                const existing = entries.find(e => e.osId === contact.id && e.type === 'BIRTHDAY') as Birthday | undefined;
+
+                if (existing) {
+                  // If it exists but has no birthYear and we now found one, update it
+                  if (!existing.birthYear && bday.year) {
+                    toUpdate.push({
+                      id: existing.id,
+                      updates: { birthYear: bday.year }
+                    });
+                  }
+                } else {
+                  toImport.push({
                     type: 'BIRTHDAY',
                     title: contact.name || 'Unknown',
                     personName: contact.name || 'Unknown',
                     date: dateStr,
+                    birthYear: bday.year,
                     accountId: defaultAccount?.id ?? 'local',
                     osId: contact.id,
-                  };
-                }).filter((b): b is any => b !== null);
+                  });
+                }
+              }
 
               if (toImport.length > 0) {
                 await addEntries(toImport);
               }
 
+              if (toUpdate.length > 0) {
+                for (const item of toUpdate) {
+                  updateEntry(item.id, item.updates);
+                }
+              }
+
               haptics.success();
-              Alert.alert('Done', `Imported ${toImport.length} birthdays to your default account.`);
+              const total = toImport.length + toUpdate.length;
+              if (total === 0) {
+                Alert.alert('No Changes', 'All birthdays are already up to date.');
+              } else {
+                Alert.alert('Import Complete', `Imported ${toImport.length} new and updated ${toUpdate.length} existing birthdays.`);
+              }
             },
           },
         ]
       );
-    } catch {
+    } catch (err) {
+      console.error(err);
       Alert.alert('Error', 'Failed to access contacts.');
     }
-  }, [accounts, addEntries, haptics]);
+  }, [accounts, addEntries, entries, updateEntry, defaultAccount, haptics]);
 
   const handleExportData = useCallback(async () => {
     Alert.alert('Export Data', 'Do you want to export your current accounts and entries?', [

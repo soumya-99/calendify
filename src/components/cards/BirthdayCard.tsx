@@ -1,15 +1,15 @@
+import { Avatar } from '@/src/components/ui/Avatar';
+import { HapticButton } from '@/src/components/ui/HapticButton';
+import { DOT_COLORS } from '@/src/constants/dotColors';
+import { useThemeColors } from '@/src/hooks/useThemeColors';
+import { ShapeScale } from '@/src/theme/motion';
+import { Spacing } from '@/src/theme/spacing';
+import { TypeScale } from '@/src/theme/typography';
+import type { Birthday } from '@/src/types/entries';
+import { calculateAge, daysUntilBirthday, formatDateDisplay, formatCountdown } from '@/src/utils/dateHelpers';
+import { Gift } from 'lucide-react-native';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { HapticButton } from '@/src/components/ui/HapticButton';
-import { Avatar } from '@/src/components/ui/Avatar';
-import { useThemeColors } from '@/src/hooks/useThemeColors';
-import { TypeScale } from '@/src/theme/typography';
-import { Spacing } from '@/src/theme/spacing';
-import { ShapeScale } from '@/src/theme/motion';
-import { DOT_COLORS } from '@/src/constants/dotColors';
-import { daysUntilBirthday, calculateAge, formatDateDisplay } from '@/src/utils/dateHelpers';
-import { Gift } from 'lucide-react-native';
-import type { Birthday } from '@/src/types/entries';
 
 interface BirthdayCardProps {
   birthday: Birthday;
@@ -20,16 +20,9 @@ export function BirthdayCard({ birthday, onPress }: BirthdayCardProps) {
   const colors = useThemeColors();
 
   const daysUntil = daysUntilBirthday(birthday.date);
-  const ageText = birthday.birthYear
-    ? `${calculateAge(birthday.birthYear)} years old`
-    : undefined;
+  const turningAge = birthday.birthYear ? calculateAge(birthday.birthYear) : null;
 
-  const countdownText =
-    daysUntil === 0
-      ? 'Today! 🎂'
-      : daysUntil === 1
-      ? 'Tomorrow!'
-      : `In ${daysUntil} days`;
+  const countdownText = formatCountdown(daysUntil);
 
   return (
     <HapticButton
@@ -62,20 +55,21 @@ export function BirthdayCard({ birthday, onPress }: BirthdayCardProps) {
               <Text style={[TypeScale.bodySmall, { color: colors.onSurfaceVariant }]}>
                 {formatDateDisplay(birthday.date)}
               </Text>
-              {ageText && (
-                <>
-                  <Text style={[TypeScale.bodySmall, { color: colors.outline, marginHorizontal: 4 }]}>•</Text>
-                  <Text style={[TypeScale.bodySmall, { color: colors.onSurfaceVariant }]}>
-                    {ageText}
-                  </Text>
-                </>
-              )}
             </View>
           </View>
-          <View style={[styles.chip, { backgroundColor: daysUntil === 0 ? DOT_COLORS.BIRTHDAY : colors.secondaryContainer }]}>
-            <Text style={[TypeScale.labelSmall, { color: daysUntil === 0 ? '#FFFFFF' : colors.onSecondaryContainer }]}>
-              {countdownText}
-            </Text>
+          <View style={styles.rightSection}>
+            {turningAge && (
+              <View style={[styles.ageBadge, { backgroundColor: `${DOT_COLORS.BIRTHDAY}15` }]}>
+                <Text style={[TypeScale.labelSmall, { color: DOT_COLORS.BIRTHDAY }]}>
+                  Turning {turningAge}
+                </Text>
+              </View>
+            )}
+            <View style={[styles.chip, { backgroundColor: daysUntil === 0 ? DOT_COLORS.BIRTHDAY : colors.secondaryContainer }]}>
+              <Text style={[TypeScale.labelSmall, { color: daysUntil === 0 ? '#FFFFFF' : colors.onSecondaryContainer }]}>
+                {countdownText}
+              </Text>
+            </View>
           </View>
         </View>
       </View>
@@ -87,15 +81,9 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     borderRadius: ShapeScale.large.borderRadius,
-    borderWidth: 1,
     overflow: 'hidden',
     marginBottom: Spacing.small,
     marginHorizontal: Spacing.base,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
   },
   colorBar: {
     width: 6,
@@ -123,5 +111,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.small,
     paddingVertical: 4,
     borderRadius: 8,
+  },
+  rightSection: {
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  ageBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
 });
