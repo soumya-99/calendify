@@ -3,11 +3,7 @@ import { useEventsStore } from '../stores/useEventsStore';
 import { useNotificationStore } from '../stores/useNotificationStore';
 import type { EntryType } from '../types/entries';
 
-const ICAL_URLS: Record<string, string> = {
-  IN: 'https://calendar.google.com/calendar/ical/en.indian%23holiday%40group.v.calendar.google.com/public/basic.ics',
-  US: 'https://calendar.google.com/calendar/ical/en.usa%23holiday%40group.v.calendar.google.com/public/basic.ics',
-  GB: 'https://calendar.google.com/calendar/ical/en.uk%23holiday%40group.v.calendar.google.com/public/basic.ics',
-};
+import { HOLIDAY_COUNTRIES } from '../constants/holidayCountries';
 
 export class HolidayService {
   static async syncHolidays(): Promise<void> {
@@ -21,22 +17,27 @@ export class HolidayService {
     // Clear existing holidays before fetching new ones to avoid multi-region accumulation
     useEventsStore.getState().clearByType('HOLIDAY');
 
-    let country = holidayCountry;
-    if (!country) {
-      country = Localization.getLocales()[0]?.regionCode ?? 'IN';
-      setHolidayCountry(country);
+    let countryCode = holidayCountry;
+    const detectedCode = Localization.getLocales()[0]?.regionCode ?? 'IN';
+    
+    if (!countryCode) {
+      countryCode = detectedCode;
+      setHolidayCountry(countryCode);
     }
 
-    const url = ICAL_URLS[country];
-    if (!url) {
-      console.warn(`No holiday iCal URL for country: ${country}`);
+    const countryData = HOLIDAY_COUNTRIES.find(c => c.code === countryCode) || HOLIDAY_COUNTRIES.find(c => c.code === 'US');
+    if (!countryData) {
+      console.warn(`No holiday data for country code: ${countryCode}`);
       return;
     }
+
+    const encodedId = encodeURIComponent(`${countryData.id}#holiday@group.v.calendar.google.com`);
+    const url = `https://calendar.google.com/calendar/ical/${encodedId}/public/basic.ics`;
 
     try {
       const response = await fetch(url);
       const icsData = await response.text();
-      const holidays = this.parseICS(icsData, country);
+      const holidays = this.parseICS(icsData, countryCode);
       
       if (holidays.length > 0) {
         await useEventsStore.getState().addEntries(holidays);

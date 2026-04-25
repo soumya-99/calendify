@@ -429,18 +429,24 @@ export default function SettingsScreen() {
 
                 // Ensure we have a consistent year for the date string (even if birthYear is unknown)
                 const year = bday.year || new Date().getFullYear();
-                const month = String(bday.month).padStart(2, '0');
+                const month = String(bday.month + 1).padStart(2, '0');
                 const day = String(bday.day).padStart(2, '0');
                 const dateStr = `${year}-${month}-${day}`;
 
                 const existing = entries.find(e => e.osId === contact.id && e.type === 'BIRTHDAY') as Birthday | undefined;
 
                 if (existing) {
-                  // If it exists but has no birthYear and we now found one, update it
-                  if (!existing.birthYear && bday.year) {
+                  // Update if birthYear is missing OR if the date is wrong (e.g. from the previous month bug)
+                  const needsYear = !existing.birthYear && bday.year;
+                  const needsDateFix = existing.date !== dateStr;
+
+                  if (needsYear || needsDateFix) {
                     toUpdate.push({
                       id: existing.id,
-                      updates: { birthYear: bday.year }
+                      updates: {
+                        ...(needsYear ? { birthYear: bday.year } : {}),
+                        ...(needsDateFix ? { date: dateStr } : {})
+                      }
                     });
                   }
                 } else {
