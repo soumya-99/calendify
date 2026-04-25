@@ -1,5 +1,5 @@
 import React, { Children, cloneElement, isValidElement, useCallback } from 'react';
-import { Pressable, PressableProps, StyleSheet, Text, TextProps, ViewStyle } from 'react-native';
+import { Pressable, PressableProps, StyleSheet, Text, TextProps, ViewStyle, StyleProp } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -14,7 +14,7 @@ const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 interface HapticButtonProps extends Omit<PressableProps, 'style'> {
   onPress?: PressableProps['onPress'];
   hapticStyle?: 'light' | 'medium' | 'heavy' | 'selection';
-  style?: ViewStyle | ViewStyle[];
+  style?: StyleProp<ViewStyle>;
   children?: React.ReactNode;
   scaleOnPress?: number;
 }

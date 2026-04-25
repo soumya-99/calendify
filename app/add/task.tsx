@@ -14,15 +14,15 @@ import { TypeScale } from '@/src/theme/typography';
 import type { Priority, Task } from '@/src/types/entries';
 import * as Calendar from 'expo-calendar';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ChevronLeft } from 'lucide-react-native';
+import { ChevronLeft, ArrowDown, ArrowUp, Minus } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const PRIORITY_STYLES: Record<Priority, { color: string; emoji: string }> = {
-  LOW: { color: '#43A047', emoji: '🟢' },
-  MEDIUM: { color: '#FFB300', emoji: '🟡' },
-  HIGH: { color: '#E64A19', emoji: '🔴' },
+const PRIORITY_STYLES: Record<Priority, { color: string; icon: any }> = {
+  LOW: { color: '#43A047', icon: ArrowDown },
+  MEDIUM: { color: '#FFB300', icon: Minus },
+  HIGH: { color: '#E64A19', icon: ArrowUp },
 };
 
 export default function AddTaskScreen() {
@@ -144,6 +144,7 @@ export default function AddTaskScreen() {
           {priorities.map((p) => {
             const isActive = priority === p;
             const ps = PRIORITY_STYLES[p];
+            const Icon = ps.icon;
             return (
               <HapticButton
                 key={p}
@@ -154,8 +155,8 @@ export default function AddTaskScreen() {
                   isActive ? { backgroundColor: `${ps.color}20`, borderColor: ps.color, borderWidth: 1.5 } : {},
                 ]}
               >
-                <Text style={{ fontSize: 12 }}>{ps.emoji}</Text>
-                <Text style={[TypeScale.labelMedium, { color: isActive ? ps.color : colors.onSurfaceVariant, fontWeight: '400', marginTop: 2 }]} numberOfLines={1}>
+                <Icon size={14} color={isActive ? ps.color : colors.onSurfaceVariant} strokeWidth={2.5} />
+                <Text style={[TypeScale.labelMedium, { color: isActive ? ps.color : colors.onSurfaceVariant, fontWeight: '600', marginTop: 2 }]} numberOfLines={1}>
                   {p}
                 </Text>
               </HapticButton>
