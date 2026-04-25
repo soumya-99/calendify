@@ -1,16 +1,20 @@
-import React, { useEffect } from 'react';
-import { Stack } from 'expo-router';
-import { StatusBar } from 'expo-status-bar';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { useColorScheme, StyleSheet } from 'react-native';
-import 'react-native-reanimated';
-import { useThemeStore } from '@/src/stores/useThemeStore';
 import { useThemeColors } from '@/src/hooks/useThemeColors';
+import { NotificationService } from '@/src/services/NotificationService';
 import { useAccountsStore } from '@/src/stores/useAccountsStore';
+import { useEventsStore } from '@/src/stores/useEventsStore';
+import { useNotificationStore } from '@/src/stores/useNotificationStore';
 import { useSettingsStore } from '@/src/stores/useSettingsStore';
-import { create } from 'zustand';
-import { ActivityIndicator, Text, View } from 'react-native';
+import { useThemeStore } from '@/src/stores/useThemeStore';
+import { registerBackgroundSync } from '@/src/tasks/backgroundSyncTask';
+import * as Notifications from 'expo-notifications';
+import { Stack, useRouter } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import React, { useEffect } from 'react';
+import { ActivityIndicator, AppState, StyleSheet, Text, useColorScheme, View, type AppStateStatus } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import 'react-native-reanimated';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import { create } from 'zustand';
 
 export const useLoaderStore = create<{ isLoading: boolean; show: () => void; hide: () => void }>((set) => ({
   isLoading: false,
@@ -21,9 +25,9 @@ export const useLoaderStore = create<{ isLoading: boolean; show: () => void; hid
 function GlobalLoader() {
   const isLoading = useLoaderStore((s) => s.isLoading);
   const colors = useThemeColors();
-  
+
   if (!isLoading) return null;
-  
+
   return (
     <Animated.View
       entering={FadeIn.duration(200)}
@@ -50,6 +54,9 @@ function RootLayoutInner() {
   const addAccount = useAccountsStore((s) => s.addAccount);
   const onboardingDone = useSettingsStore((s) => s.onboardingDone);
   const setOnboardingDone = useSettingsStore((s) => s.setOnboardingDone);
+  const router = useRouter();
+  const entries = useEventsStore((s) => s.entries);
+  const masterEnabled = useNotificationStore((s) => s.masterEnabled);
 
   // Create default account on first launch
   useEffect(() => {
@@ -58,6 +65,45 @@ function RootLayoutInner() {
       setOnboardingDone(true);
     }
   }, [onboardingDone, accounts.length, addAccount, setOnboardingDone]);
+
+  // Notifications Lifecycle
+  useEffect(() => {
+    // 1. Request permissions on start
+    NotificationService.requestPermissions().then((status) => {
+      if (status === 'granted') {
+        // Register background sync only if granted
+        registerBackgroundSync();
+      }
+    });
+
+    // 2. Initial sync
+    NotificationService.syncAll(entries);
+
+    // 4. Foreground re-sync
+    const appSub = AppState.addEventListener('change', (status: AppStateStatus) => {
+      if (status === 'active') NotificationService.syncAll(entries);
+    });
+
+    // 5. Tap listener
+    const tapSub = Notifications.addNotificationResponseReceivedListener((res) => {
+      const { date } = res.notification.request.content.data as { date?: string };
+      if (date) {
+        router.push(`/day/${date}`);
+      }
+    });
+
+    return () => {
+      appSub.remove();
+      tapSub.remove();
+    };
+  }, [router]); // Removed entries from deps to prevent redundant syncAll on every change
+
+  // Master switch / Entries changes re-sync
+  useEffect(() => {
+    if (masterEnabled) {
+      NotificationService.syncAll(entries);
+    }
+  }, [masterEnabled]); // Remove entries from deps to avoid constant cancelAll/reschedule cycles
 
   const isDark = themeMode === 'system' ? systemScheme === 'dark' : themeMode === 'dark';
 

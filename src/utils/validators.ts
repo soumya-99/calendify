@@ -55,7 +55,7 @@ export const AnyEntrySchema = z.union([
 
 export const AccountSchema = z.object({
   id: z.string().min(1),
-  email: z.string().email(),
+  email: z.email(),
   displayName: z.string().min(1),
   avatarColor: z.string(),
   isDefault: z.boolean(),

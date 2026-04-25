@@ -1,4 +1,4 @@
-export type EntryType = 'REMINDER' | 'TASK' | 'EVENT' | 'BIRTHDAY';
+export type EntryType = 'REMINDER' | 'TASK' | 'EVENT' | 'BIRTHDAY' | 'HOLIDAY';
 
 export type RepeatRule = 'NONE' | 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
 
@@ -12,6 +12,8 @@ export interface CalendarEntry {
   accountId: string;
   colorTag: string; // hex color for dot indicator
   notes?: string;
+  notificationTime?: string; // ISO 8601 timestamp for custom notification
+  osId?: string; // ID from external source (Device Calendar/Contacts)
   createdAt: string; // ISO timestamp
   updatedAt: string;
 }

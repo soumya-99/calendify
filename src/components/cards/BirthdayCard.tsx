@@ -1,14 +1,15 @@
+import { Avatar } from '@/src/components/ui/Avatar';
+import { HapticButton } from '@/src/components/ui/HapticButton';
+import { DOT_COLORS } from '@/src/constants/dotColors';
+import { useThemeColors } from '@/src/hooks/useThemeColors';
+import { ShapeScale } from '@/src/theme/motion';
+import { Spacing } from '@/src/theme/spacing';
+import { TypeScale } from '@/src/theme/typography';
+import type { Birthday } from '@/src/types/entries';
+import { calculateAge, daysUntilBirthday, formatDateDisplay, formatCountdown } from '@/src/utils/dateHelpers';
+import { Gift } from 'lucide-react-native';
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
-import { HapticButton } from '@/src/components/ui/HapticButton';
-import { Avatar } from '@/src/components/ui/Avatar';
-import { useThemeColors } from '@/src/hooks/useThemeColors';
-import { TypeScale } from '@/src/theme/typography';
-import { Spacing } from '@/src/theme/spacing';
-import { ShapeScale } from '@/src/theme/motion';
-import { DOT_COLORS } from '@/src/constants/dotColors';
-import { daysUntilBirthday, calculateAge } from '@/src/utils/dateHelpers';
-import type { Birthday } from '@/src/types/entries';
 
 interface BirthdayCardProps {
   birthday: Birthday;
@@ -19,16 +20,9 @@ export function BirthdayCard({ birthday, onPress }: BirthdayCardProps) {
   const colors = useThemeColors();
 
   const daysUntil = daysUntilBirthday(birthday.date);
-  const ageText = birthday.birthYear
-    ? `Age: ${calculateAge(birthday.birthYear)}`
-    : undefined;
+  const turningAge = birthday.birthYear ? calculateAge(birthday.birthYear) : null;
 
-  const countdownText =
-    daysUntil === 0
-      ? 'Today! 🎂'
-      : daysUntil === 1
-      ? 'Tomorrow!'
-      : `In ${daysUntil} days`;
+  const countdownText = formatCountdown(daysUntil);
 
   return (
     <HapticButton
@@ -37,7 +31,8 @@ export function BirthdayCard({ birthday, onPress }: BirthdayCardProps) {
       style={[
         styles.card,
         {
-          backgroundColor: `${colors.surfaceVariant}99`,
+          backgroundColor: colors.surface,
+          borderColor: colors.outlineVariant,
         },
       ]}
       accessibilityLabel={`Birthday: ${birthday.personName ?? birthday.title}, ${countdownText}`}
@@ -48,23 +43,33 @@ export function BirthdayCard({ birthday, onPress }: BirthdayCardProps) {
           <Avatar
             initials={(birthday.personName ?? birthday.title ?? '?').slice(0, 2)}
             color={DOT_COLORS.BIRTHDAY}
-            size={36}
+            size={44}
             style={styles.avatar}
           />
           <View style={styles.textContainer}>
             <Text style={[TypeScale.titleMedium, { color: colors.onSurface }]} numberOfLines={1}>
               {birthday.personName ?? birthday.title}
             </Text>
-            {ageText && (
+            <View style={styles.metaRow}>
+              <Gift size={12} color={colors.onSurfaceVariant} style={{ marginRight: 4 }} />
               <Text style={[TypeScale.bodySmall, { color: colors.onSurfaceVariant }]}>
-                {ageText}
+                {formatDateDisplay(birthday.date)}
               </Text>
-            )}
+            </View>
           </View>
-          <View style={[styles.chip, { backgroundColor: colors.tertiaryContainer }]}>
-            <Text style={[TypeScale.labelSmall, { color: colors.onTertiaryContainer }]}>
-              {countdownText}
-            </Text>
+          <View style={styles.rightSection}>
+            {turningAge && (
+              <View style={[styles.ageBadge, { backgroundColor: `${DOT_COLORS.BIRTHDAY}15` }]}>
+                <Text style={[TypeScale.labelSmall, { color: DOT_COLORS.BIRTHDAY }]}>
+                  Turning {turningAge}
+                </Text>
+              </View>
+            )}
+            <View style={[styles.chip, { backgroundColor: daysUntil === 0 ? DOT_COLORS.BIRTHDAY : colors.secondaryContainer }]}>
+              <Text style={[TypeScale.labelSmall, { color: daysUntil === 0 ? '#FFFFFF' : colors.onSecondaryContainer }]}>
+                {countdownText}
+              </Text>
+            </View>
           </View>
         </View>
       </View>
@@ -81,7 +86,7 @@ const styles = StyleSheet.create({
     marginHorizontal: Spacing.base,
   },
   colorBar: {
-    width: 4,
+    width: 6,
   },
   content: {
     flex: 1,
@@ -92,14 +97,30 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   avatar: {
-    marginRight: Spacing.compact,
+    marginRight: Spacing.base,
   },
   textContainer: {
     flex: 1,
   },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 2,
+  },
   chip: {
     paddingHorizontal: Spacing.small,
-    paddingVertical: Spacing.micro,
-    borderRadius: 9999,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  rightSection: {
+    alignItems: 'flex-end',
+    gap: 4,
+  },
+  ageBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: 'transparent',
   },
 });

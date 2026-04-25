@@ -1,4 +1,10 @@
 import { useLoaderStore } from '@/app/_layout';
+import HolidaySettingsSheet, {
+  type HolidaySettingsSheetRef,
+} from '@/src/components/sheets/HolidaySettingsSheet';
+import NotificationSettingsSheet, {
+  type NotificationSettingsSheetRef,
+} from '@/src/components/sheets/NotificationSettingsSheet';
 import { AnimatedScreen } from '@/src/components/ui/AnimatedScreen';
 import { Avatar } from '@/src/components/ui/Avatar';
 import { Divider } from '@/src/components/ui/Divider';
@@ -9,10 +15,12 @@ import { useHaptics } from '@/src/hooks/useHaptics';
 import { useThemeColors } from '@/src/hooks/useThemeColors';
 import { useAccountsStore } from '@/src/stores/useAccountsStore';
 import { useEventsStore } from '@/src/stores/useEventsStore';
+import { useNotificationStore } from '@/src/stores/useNotificationStore';
 import { useThemeStore } from '@/src/stores/useThemeStore';
 import { Spacing } from '@/src/theme/spacing';
 import { TypeScale } from '@/src/theme/typography';
 import type { Account } from '@/src/types/accounts';
+import type { Birthday } from '@/src/types/entries';
 import type { ColorSchemeChoice, ThemeMode } from '@/src/types/theme';
 import {
   CALENDIFY_BACKUP_FILENAME,
@@ -29,9 +37,14 @@ import * as Sharing from 'expo-sharing';
 import {
   ArrowDownToLine,
   ArrowUpFromLine,
+  Bell,
+  Cake,
+  CalendarPlus,
   CheckCircle2,
+  CheckSquare,
   ChevronDown,
   Download,
+  Globe,
   Info,
   Moon,
   Palette,
@@ -41,9 +54,9 @@ import {
   Sun,
   Trash2,
   Upload,
-  Users
+  Users,
 } from 'lucide-react-native';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
@@ -54,7 +67,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  View,
+  View
 } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import Animated, { Easing, interpolate, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
@@ -161,6 +174,8 @@ export default function SettingsScreen() {
   const colors = useThemeColors();
   const insets = useSafeAreaInsets();
   const haptics = useHaptics();
+  const notifSheetRef = useRef<NotificationSettingsSheetRef>(null);
+  const holidaySheetRef = useRef<HolidaySettingsSheetRef>(null);
 
   const themeMode = useThemeStore((s) => s.themeMode);
   const colorScheme = useThemeStore((s) => s.colorScheme);
@@ -175,7 +190,31 @@ export default function SettingsScreen() {
   const entries = useEventsStore((s) => s.entries);
   const addEntry = useEventsStore((s) => s.addEntry);
   const clearAll = useEventsStore((s) => s.clearAll);
+  const clearByType = useEventsStore((s) => s.clearByType);
   const importEntries = useEventsStore((s) => s.importEntries);
+  const addEntries = useEventsStore((s) => s.addEntries);
+  const updateEntry = useEventsStore((s) => s.updateEntry);
+  const defaultAccount = useMemo(() => accounts.find(a => a.isDefault), [accounts]);
+
+  const {
+    masterEnabled,
+    remindersEnabled,
+    eventsEnabled,
+    birthdaysEnabled,
+    holidaysEnabled,
+    holidayCountry,
+    setHolidaysEnabled,
+  } = useNotificationStore();
+
+  const activeNotifsCount = [remindersEnabled, eventsEnabled, birthdaysEnabled].filter(Boolean).length;
+  const notifSummaryText = !masterEnabled
+    ? 'Off'
+    : activeNotifsCount === 3
+      ? 'All on'
+      : activeNotifsCount === 0
+        ? 'All off'
+        : `${activeNotifsCount} of 3 on`;
+
 
   const [themePickerVisible, setThemePickerVisible] = useState(false);
   const [colorPickerVisible, setColorPickerVisible] = useState(false);
@@ -193,6 +232,10 @@ export default function SettingsScreen() {
     setCalActionSheet({ visible: true, cal });
   };
   const closeCalActionSheet = () => setCalActionSheet({ visible: false, cal: null });
+
+  const [clearDataSheetVisible, setClearDataSheetVisible] = useState(false);
+  const openClearDataSheet = () => setClearDataSheetVisible(true);
+  const closeClearDataSheet = () => setClearDataSheetVisible(false);
 
   const [deviceCalendars, setDeviceCalendars] = useState<Calendar.Calendar[]>([]);
 
@@ -312,39 +355,47 @@ export default function SettingsScreen() {
           onPress: async () => {
             useLoaderStore.getState().show?.();
             haptics.light();
-            let importCount = 0;
             const start = new Date();
             start.setMonth(start.getMonth() - 2);
             const end = new Date();
             end.setFullYear(end.getFullYear() + 1);
             const osEvents = await Calendar.getEventsAsync([cal.id], start, end);
-            for (const ev of osEvents) {
-              const evDate = new Date(ev.startDate);
-              const evEnd = new Date(ev.endDate);
-              addEntry({
-                type: 'EVENT',
-                title: ev.title || 'Untitled Event',
-                date: evDate.toISOString().split('T')[0],
-                startTime: evDate.toTimeString().slice(0, 5),
-                endTime: evEnd.toTimeString().slice(0, 5),
-                location: ev.location,
-                allDay: ev.allDay,
-                notes: ev.notes,
-                colorTag: '#4285F4',
-                accountId: 'local',
+
+            const existingOsIds = new Set(entries.filter(e => e.osId).map(e => e.osId));
+            const toImport = osEvents
+              .filter(ev => !existingOsIds.has(ev.id))
+              .map(ev => {
+                const evDate = new Date(ev.startDate);
+                const evEnd = new Date(ev.endDate);
+                return {
+                  type: 'EVENT',
+                  title: ev.title || 'Untitled Event',
+                  date: evDate.toISOString().split('T')[0],
+                  startTime: evDate.toTimeString().slice(0, 5),
+                  endTime: evEnd.toTimeString().slice(0, 5),
+                  location: ev.location,
+                  allDay: ev.allDay,
+                  notes: ev.notes,
+                  colorTag: '#4285F4',
+                  accountId: 'local',
+                  osId: ev.id,
+                };
               });
-              importCount++;
+
+            if (toImport.length > 0) {
+              await addEntries(toImport);
             }
+
             useLoaderStore.getState().hide?.();
             haptics.success();
-            Alert.alert('Import Complete', `Successfully imported ${importCount} events from ${cal.title}.`);
+            Alert.alert('Import Complete', `Successfully imported ${toImport.length} events from ${cal.title}.`);
           }
         }
       ]);
     } catch {
       Alert.alert('Error', 'Failed to import from Device calendar');
     }
-  }, [addEntry, haptics]);
+  }, [addEntries, haptics]);
 
   const handleImportBirthdays = useCallback(async () => {
     try {
@@ -368,35 +419,69 @@ export default function SettingsScreen() {
           { text: 'Cancel', style: 'cancel' },
           {
             text: 'Import',
-            onPress: () => {
-              const defaultAccount = accounts.find((a) => a.isDefault);
-              let count = 0;
+            onPress: async () => {
+              const toImport: any[] = [];
+              const toUpdate: { id: string; updates: any }[] = [];
+
               for (const contact of contactsWithBirthdays) {
                 const bday = contact.birthday!;
                 if (!bday.month || !bday.day) continue;
-                const year = bday.year ?? new Date().getFullYear();
+
+                // Ensure we have a consistent year for the date string (even if birthYear is unknown)
+                const year = bday.year || new Date().getFullYear();
                 const month = String(bday.month).padStart(2, '0');
                 const day = String(bday.day).padStart(2, '0');
                 const dateStr = `${year}-${month}-${day}`;
-                addEntry({
-                  type: 'BIRTHDAY',
-                  title: contact.name || 'Unknown',
-                  personName: contact.name || 'Unknown',
-                  date: dateStr,
-                  accountId: defaultAccount?.id ?? 'local',
-                });
-                count++;
+
+                const existing = entries.find(e => e.osId === contact.id && e.type === 'BIRTHDAY') as Birthday | undefined;
+
+                if (existing) {
+                  // If it exists but has no birthYear and we now found one, update it
+                  if (!existing.birthYear && bday.year) {
+                    toUpdate.push({
+                      id: existing.id,
+                      updates: { birthYear: bday.year }
+                    });
+                  }
+                } else {
+                  toImport.push({
+                    type: 'BIRTHDAY',
+                    title: contact.name || 'Unknown',
+                    personName: contact.name || 'Unknown',
+                    date: dateStr,
+                    birthYear: bday.year,
+                    accountId: defaultAccount?.id ?? 'local',
+                    osId: contact.id,
+                  });
+                }
               }
+
+              if (toImport.length > 0) {
+                await addEntries(toImport);
+              }
+
+              if (toUpdate.length > 0) {
+                for (const item of toUpdate) {
+                  updateEntry(item.id, item.updates);
+                }
+              }
+
               haptics.success();
-              Alert.alert('Done', `Imported ${count} birthdays to your default account.`);
+              const total = toImport.length + toUpdate.length;
+              if (total === 0) {
+                Alert.alert('No Changes', 'All birthdays are already up to date.');
+              } else {
+                Alert.alert('Import Complete', `Imported ${toImport.length} new and updated ${toUpdate.length} existing birthdays.`);
+              }
             },
           },
         ]
       );
-    } catch {
+    } catch (err) {
+      console.error(err);
       Alert.alert('Error', 'Failed to access contacts.');
     }
-  }, [accounts, addEntry, haptics]);
+  }, [accounts, addEntries, entries, updateEntry, defaultAccount, haptics]);
 
   const handleExportData = useCallback(async () => {
     Alert.alert('Export Data', 'Do you want to export your current accounts and entries?', [
@@ -454,18 +539,8 @@ export default function SettingsScreen() {
   }, [importEntries, importAccounts, haptics]);
 
   const handleClearData = useCallback(() => {
-    Alert.alert('Clear Data', 'Are you sure you want to clear all local entries?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Clear',
-        style: 'destructive',
-        onPress: () => {
-          clearAll();
-          haptics.heavy();
-        }
-      }
-    ]);
-  }, [clearAll, haptics]);
+    openClearDataSheet();
+  }, []);
 
   const SettingsIcon = ({ icon: Icon, color }: { icon: typeof Sun; color: string }) => (
     <View style={[styles.iconBg, { backgroundColor: getLightBackground(color) }]}>
@@ -581,25 +656,46 @@ export default function SettingsScreen() {
           />
         </View>
 
+        {/* NOTIFICATIONS */}
+        <SectionHeader title="NOTIFICATIONS" />
+        <View style={[styles.card, { backgroundColor: colors.surface }]}>
+          <SettingsRow
+            icon={<SettingsIcon icon={Bell} color={colors.primary} />}
+            label="Notification Preferences"
+            value={notifSummaryText}
+            onPress={() => notifSheetRef.current?.open()}
+          />
+        </View>
+
+        <SectionHeader title="CALENDAR PREFERENCES" />
+        <View style={[styles.card, { backgroundColor: colors.surface }]}>
+          <SettingsRow
+            icon={<SettingsIcon icon={Globe} color="#4DB6AC" />}
+            label="Regional Holidays"
+            value={holidaysEnabled ? (holidayCountry || 'Auto') : 'Off'}
+            onPress={() => holidaySheetRef.current?.open()}
+          />
+        </View>
+
         <SectionHeader title="DATA MANAGEMENT" />
         <View style={[styles.card, { backgroundColor: colors.surface }]}>
           <SettingsRow
             icon={<SettingsIcon icon={Upload} color={ICON_COLORS.exportCalendify} />}
-            label="Export data"
+            label="Export Data"
             value="Backup"
             onPress={handleExportData}
           />
           <Divider inset />
           <SettingsRow
             icon={<SettingsIcon icon={Download} color={ICON_COLORS.importCalendify} />}
-            label="Import data"
+            label="Import Data"
             value="Restore"
             onPress={handleImportData}
           />
           <Divider inset />
           <SettingsRow
             icon={<SettingsIcon icon={Trash2} color={colors.error} />}
-            label="Clear all data"
+            label="Clear Data"
             value="Delete"
             onPress={handleClearData}
           />
@@ -815,6 +911,95 @@ export default function SettingsScreen() {
           </View>
         </View>
       </Modal>
+      {/* Clear Data Bottom Sheet */}
+      <Modal
+        visible={clearDataSheetVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={closeClearDataSheet}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={closeClearDataSheet}>
+          <View />
+        </Pressable>
+        <View style={styles.modalContainer}>
+          <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
+            <View style={[styles.handle, { backgroundColor: colors.outlineVariant }]} />
+            <Text style={[TypeScale.titleLarge, styles.modalTitle, { color: colors.onSurface }]}>
+              Clear Data
+            </Text>
+            <Text style={[TypeScale.bodySmall, { color: colors.onSurfaceVariant, paddingHorizontal: Spacing.small, marginBottom: Spacing.base }]}>
+              Select data type to remove permanently
+            </Text>
+            <View style={[styles.optionsList, { backgroundColor: colors.background }]}>
+              {[
+                { label: 'Reminders', subtitle: 'Remove all pending notifications', icon: Bell, type: 'REMINDER', color: '#FF5252' },
+                { label: 'Events', subtitle: 'Clear all scheduled appointments', icon: CalendarPlus, type: 'EVENT', color: '#42A5F5' },
+                { label: 'Birthdays', subtitle: 'Wipe all saved special dates', icon: Cake, type: 'BIRTHDAY', color: '#EC407A' },
+                { label: 'Tasks', subtitle: 'Remove all to-do items', icon: CheckSquare, type: 'TASK', color: '#66BB6A' },
+              ].map((opt, idx, arr) => (
+                <HapticButton
+                  key={opt.type}
+                  hapticStyle="medium"
+                  onPress={() => {
+                    Alert.alert(opt.label, `Are you sure you want to delete all ${opt.type.toLowerCase()}s?`, [
+                      { text: 'Cancel', style: 'cancel' },
+                      {
+                        text: 'Delete',
+                        style: 'destructive',
+                        onPress: () => {
+                          clearByType(opt.type as any);
+                          haptics.heavy();
+                          closeClearDataSheet();
+                          Alert.alert('Deleted', `${opt.label} cleared successfully.`);
+                        }
+                      }
+                    ]);
+                  }}
+                  style={[styles.calActionRow, idx < arr.length - 1 ? { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: `${colors.outlineVariant}60` } : {}]}
+                >
+                  <View style={[styles.calActionIcon, { backgroundColor: `${opt.color}18` }]}>
+                    <opt.icon size={22} color={opt.color} strokeWidth={1.75} />
+                  </View>
+                  <View style={styles.calActionText}>
+                    <Text style={[TypeScale.titleSmall, { color: colors.onSurface }]}>{opt.label}</Text>
+                    <Text style={[TypeScale.bodySmall, { color: colors.onSurfaceVariant }]}>{opt.subtitle}</Text>
+                  </View>
+                </HapticButton>
+              ))}
+              <Divider />
+              <HapticButton
+                hapticStyle="heavy"
+                onPress={() => {
+                  Alert.alert('Delete All Data', 'This will wipe all locally stored entries. This cannot be undone.', [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Delete All',
+                      style: 'destructive',
+                      onPress: () => {
+                        clearAll();
+                        haptics.heavy();
+                        closeClearDataSheet();
+                        Alert.alert('Deleted', 'All application data has been cleared.');
+                      }
+                    }
+                  ]);
+                }}
+                style={styles.calActionRow}
+              >
+                <View style={[styles.calActionIcon, { backgroundColor: `${colors.error}18` }]}>
+                  <Trash2 size={22} color={colors.error} strokeWidth={1.75} />
+                </View>
+                <View style={styles.calActionText}>
+                  <Text style={[TypeScale.titleSmall, { color: colors.error }]}>Delete All Data</Text>
+                  <Text style={[TypeScale.bodySmall, { color: colors.onSurfaceVariant }]}>Factory reset application database</Text>
+                </View>
+              </HapticButton>
+            </View>
+          </View>
+        </View>
+      </Modal>
+      <NotificationSettingsSheet ref={notifSheetRef} />
+      <HolidaySettingsSheet ref={holidaySheetRef} />
     </AnimatedScreen>
   );
 }
@@ -874,7 +1059,7 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: { height: 40 },
   modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.45)',
   },
   modalContainer: {
@@ -958,5 +1143,17 @@ const styles = StyleSheet.create({
   calActionText: {
     flex: 1,
     gap: 2,
+  },
+  holidayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.base,
+    paddingVertical: 14,
+  },
+  left: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
   },
 });

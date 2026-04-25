@@ -3,9 +3,9 @@ import { useThemeColors } from '@/src/hooks/useThemeColors';
 import { Spacing } from '@/src/theme/spacing';
 import { TypeScale } from '@/src/theme/typography';
 import { getMonthName } from '@/src/utils/dateHelpers';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react-native';
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 interface CalendarHeaderProps {
@@ -23,25 +23,38 @@ export function CalendarHeader({ month, year, onPrev, onNext, onJumpToDate }: Ca
 
   const [showModal, setShowModal] = useState(false);
   const [pickerDate, setPickerDate] = useState(new Date(year, month, 1));
+  const isPickerOpen = useRef(false);
 
-  // Android uses the native calendar dialog directly (no modal needed)
-  const [showAndroidPicker, setShowAndroidPicker] = useState(false);
+  useEffect(() => {
+    return () => {
+      if (Platform.OS === 'android' && isPickerOpen.current) {
+        try {
+          DateTimePickerAndroid.dismiss('date');
+        } catch (_) { }
+      }
+    };
+  }, []);
 
   const handleTitlePress = () => {
-    // Reset picker to current viewed month
     const d = new Date(year, month, 1);
     setPickerDate(d);
     if (Platform.OS === 'android') {
-      setShowAndroidPicker(true);
+      isPickerOpen.current = true;
+      DateTimePickerAndroid.open({
+        value: d,
+        mode: 'date',
+        display: 'calendar',
+        onChange: handleAndroidChange,
+        onError: () => { isPickerOpen.current = false; },
+      });
     } else {
       setShowModal(true);
     }
   };
 
-  // Android: calendar dialog — fires when user taps OK
-  const handleAndroidChange = (_: any, selected?: Date) => {
-    setShowAndroidPicker(false);
-    if (selected && onJumpToDate) {
+  const handleAndroidChange = (event: any, selected?: Date) => {
+    isPickerOpen.current = false;
+    if (event.type === 'set' && selected && onJumpToDate) {
       const y = selected.getFullYear();
       const m = selected.getMonth();
       const d = String(selected.getDate()).padStart(2, '0');
@@ -100,17 +113,6 @@ export function CalendarHeader({ month, year, onPrev, onNext, onJumpToDate }: Ca
       >
         <ChevronRight size={24} color={colors.onSurface} strokeWidth={1.75} />
       </HapticButton>
-
-      {/* Android: full native calendar dialog — no modal wrapper needed */}
-      {showAndroidPicker && (
-        <DateTimePicker
-          value={pickerDate}
-          mode="date"
-          display="calendar"
-          onValueChange={handleAndroidChange}
-          onDismiss={() => setShowAndroidPicker(false)}
-        />
-      )}
 
       {/* iOS: inline calendar inside a bottom sheet modal */}
       {Platform.OS === 'ios' && (
@@ -182,7 +184,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: 'rgba(0,0,0,0.45)',
   },
   iosSheet: {

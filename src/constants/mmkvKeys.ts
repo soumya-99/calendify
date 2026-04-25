@@ -6,4 +6,6 @@ export const MMKV_KEYS = {
   SETTINGS: 'calendify.settings',
   SELECTED_DATE: 'calendify.calendar.selectedDate',
   ONBOARDING_DONE: 'calendify.onboarding.done',
+  NOTIF_PREFS: 'calendify.notif.preferences',
+  NOTIF_ID_MAP: 'calendify.notif.idMap',
 } as const;

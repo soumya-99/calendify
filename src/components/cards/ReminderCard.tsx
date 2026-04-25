@@ -1,13 +1,12 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { HapticButton } from '@/src/components/ui/HapticButton';
-import { ColorDot } from '@/src/components/ui/ColorDot';
 import { useThemeColors } from '@/src/hooks/useThemeColors';
 import { TypeScale } from '@/src/theme/typography';
 import { Spacing } from '@/src/theme/spacing';
 import { ShapeScale } from '@/src/theme/motion';
 import { formatTime } from '@/src/utils/dateHelpers';
-import { Bell, RefreshCw } from 'lucide-react-native';
+import { Bell, RefreshCw, AlignLeft } from 'lucide-react-native';
 import type { Reminder } from '@/src/types/entries';
 import { DOT_COLORS } from '@/src/constants/dotColors';
 
@@ -26,7 +25,8 @@ export function ReminderCard({ reminder, onPress }: ReminderCardProps) {
       style={[
         styles.card,
         {
-          backgroundColor: `${colors.surfaceVariant}99`,
+          backgroundColor: colors.surface,
+          borderColor: colors.outlineVariant,
         },
       ]}
       accessibilityLabel={`Reminder: ${reminder.title} at ${formatTime(reminder.time)}`}
@@ -34,17 +34,47 @@ export function ReminderCard({ reminder, onPress }: ReminderCardProps) {
       <View style={[styles.colorBar, { backgroundColor: DOT_COLORS.REMINDER }]} />
       <View style={styles.content}>
         <View style={styles.topRow}>
-          <Bell size={14} color={DOT_COLORS.REMINDER} strokeWidth={1.75} />
-          <Text style={[TypeScale.bodySmall, styles.timeText, { color: colors.onSurfaceVariant }]}>
-            {formatTime(reminder.time)}
-          </Text>
-          {reminder.repeat !== 'NONE' && (
-            <RefreshCw size={12} color={colors.onSurfaceVariant} strokeWidth={1.75} style={styles.repeatIcon} />
+          <View style={styles.titleContainer}>
+            <Text style={[TypeScale.titleMedium, { color: colors.onSurface }]} numberOfLines={1}>
+              {reminder.title}
+            </Text>
+          </View>
+          <View style={[styles.timeBadge, { backgroundColor: `${DOT_COLORS.REMINDER}15` }]}>
+            <Text style={[TypeScale.labelSmall, { color: DOT_COLORS.REMINDER }]}>
+              {formatTime(reminder.time)}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.metaContainer}>
+          <View style={styles.metaRow}>
+            <Bell size={13} color={colors.onSurfaceVariant} strokeWidth={2} />
+            <Text style={[TypeScale.bodySmall, { color: colors.onSurfaceVariant, marginLeft: 6 }]}>
+              {formatTime(reminder.time)}
+            </Text>
+            {reminder.repeat !== 'NONE' && (
+              <>
+                <Text style={[TypeScale.bodySmall, { color: colors.outline, marginHorizontal: 6 }]}>•</Text>
+                <RefreshCw size={12} color={colors.onSurfaceVariant} strokeWidth={2} />
+                <Text style={[TypeScale.bodySmall, { color: colors.onSurfaceVariant, marginLeft: 4 }]}>
+                  {reminder.repeat.toLowerCase()}
+                </Text>
+              </>
+            )}
+          </View>
+
+          {reminder.notes && (
+            <View style={styles.metaRow}>
+              <AlignLeft size={13} color={colors.onSurfaceVariant} strokeWidth={2} />
+              <Text
+                style={[TypeScale.bodySmall, { color: colors.onSurfaceVariant, marginLeft: 6 }]}
+                numberOfLines={1}
+              >
+                {reminder.notes}
+              </Text>
+            </View>
           )}
         </View>
-        <Text style={[TypeScale.titleMedium, { color: colors.onSurface }]} numberOfLines={1}>
-          {reminder.title}
-        </Text>
       </View>
     </HapticButton>
   );
@@ -54,26 +84,44 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     borderRadius: ShapeScale.large.borderRadius,
+    borderWidth: 1,
     overflow: 'hidden',
     marginBottom: Spacing.small,
     marginHorizontal: Spacing.base,
+    elevation: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
   },
   colorBar: {
-    width: 4,
+    width: 6,
   },
   content: {
     flex: 1,
-    padding: Spacing.compact,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
   },
   topRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: Spacing.micro,
+    justifyContent: 'space-between',
+    marginBottom: 8,
   },
-  timeText: {
-    marginLeft: Spacing.small,
+  titleContainer: {
+    flex: 1,
   },
-  repeatIcon: {
-    marginLeft: Spacing.small,
+  timeBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 6,
+    marginLeft: 8,
+  },
+  metaContainer: {
+    gap: 4,
+  },
+  metaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
 });

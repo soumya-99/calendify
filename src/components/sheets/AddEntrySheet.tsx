@@ -1,12 +1,11 @@
-import React from 'react';
-import { StyleSheet, Text, View, Pressable, Modal } from 'react-native';
-import { useThemeColors } from '@/src/hooks/useThemeColors';
-import { TypeScale } from '@/src/theme/typography';
-import { Spacing } from '@/src/theme/spacing';
-import { ShapeScale } from '@/src/theme/motion';
 import { HapticButton } from '@/src/components/ui/HapticButton';
-import { Bell, CalendarPlus, CheckSquare, Cake, ChevronRight } from 'lucide-react-native';
 import { DOT_COLORS } from '@/src/constants/dotColors';
+import { useThemeColors } from '@/src/hooks/useThemeColors';
+import { Spacing } from '@/src/theme/spacing';
+import { TypeScale } from '@/src/theme/typography';
+import { Bell, Cake, CalendarPlus, CheckSquare, ChevronRight } from 'lucide-react-native';
+import React from 'react';
+import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 interface AddEntrySheetProps {
   visible: boolean;
@@ -87,7 +86,7 @@ export function AddEntrySheet({ visible, onClose, onSelect }: AddEntrySheetProps
 
 const styles = StyleSheet.create({
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
   },
   backdropInner: {
     flex: 1,

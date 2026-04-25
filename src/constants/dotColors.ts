@@ -5,6 +5,7 @@ export const DOT_COLORS: Record<EntryType, string> = {
   TASK: '#43A047',     // Emerald
   EVENT: '#1E88E5',    // Sapphire
   BIRTHDAY: '#E64A19', // Coral
+  HOLIDAY: '#8E24AA',  // Lavender
 };
 
 export const HOLIDAY_DOT_COLOR = '#8E24AA'; // Lavender

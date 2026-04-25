@@ -1,29 +1,32 @@
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
-import { mmkvStorage } from '@/src/hooks/useMMKV';
 import { MMKV_KEYS } from '@/src/constants/mmkvKeys';
+import { mmkvStorage } from '@/src/hooks/useMMKV';
+import { NotificationService } from '@/src/services/NotificationService';
 import type {
   AnyEntry,
+  Birthday,
+  CalendarEvent,
+  EntryType,
   Reminder,
   Task,
-  CalendarEvent,
-  Birthday,
-  EntryType,
 } from '@/src/types/entries';
-import { generateId } from '@/src/utils/generateId';
 import { nowISO } from '@/src/utils/dateHelpers';
+import { generateId } from '@/src/utils/generateId';
+import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
 
 interface EventsState {
   entries: AnyEntry[];
 
   // CRUD
-  addEntry: (entry: Record<string, unknown>) => string;
+  addEntry: (entry: Record<string, unknown>) => Promise<string>;
   updateEntry: (id: string, updates: Record<string, unknown>) => void;
   deleteEntry: (id: string) => void;
 
   // Bulk operations
+  addEntries: (entries: Record<string, unknown>[]) => Promise<void>;
   importEntries: (entries: AnyEntry[], replace?: boolean) => void;
   clearAll: () => void;
+  clearByType: (type: EntryType) => void;
 
   // Selectors
   getEntriesByDate: (date: string) => AnyEntry[];
@@ -43,32 +46,58 @@ export const useEventsStore = create<EventsState>()(
   persist(
     (set, get) => ({
       entries: [],
-      
-      clearAll: () => set({ entries: [] }),
 
-      addEntry: (entry: Record<string, unknown>) => {
+      clearAll: () => set({ entries: [] }),
+      clearByType: (type) => set((state) => ({
+        entries: state.entries.filter((e) => e.type !== type)
+      })),
+
+      addEntry: async (entry: Record<string, unknown>) => {
         const id = generateId();
         const now = nowISO();
         const newEntry = { ...entry, id, createdAt: now, updatedAt: now } as unknown as AnyEntry;
         set((state) => ({ entries: [...state.entries, newEntry] as AnyEntry[] }));
+        await NotificationService.scheduleEntry(newEntry);
         return id;
       },
 
-      updateEntry: (id: string, updates: Record<string, unknown>) => {
+      addEntries: async (entriesToImport: Record<string, unknown>[]) => {
+        const now = nowISO();
+        const existingOsIds = new Set(get().entries.filter(e => e.osId).map(e => e.osId));
+        
+        const newEntries = entriesToImport
+          .filter(e => !e.osId || !existingOsIds.has(e.osId as string))
+          .map(e => ({
+            ...e,
+            id: generateId(),
+            createdAt: now,
+            updatedAt: now
+          })) as unknown as AnyEntry[];
+        
+        if (newEntries.length === 0) return;
+
+        set((state) => ({ entries: [...state.entries, ...newEntries] as AnyEntry[] }));
+        await NotificationService.syncAll(get().entries);
+      },
+
+      updateEntry: async (id: string, updates: Record<string, unknown>) => {
         set((state) => ({
           entries: state.entries.map((e) =>
             e.id === id ? ({ ...e, ...updates, updatedAt: nowISO() } as AnyEntry) : e
           ),
         }));
+        const updated = get().entries.find((e) => e.id === id);
+        if (updated) await NotificationService.scheduleEntry(updated);
       },
 
       deleteEntry: (id) => {
         set((state) => ({
           entries: state.entries.filter((e) => e.id !== id),
         }));
+        NotificationService.cancelEntry(id);
       },
 
-      importEntries: (entries, replace = false) => {
+      importEntries: async (entries: AnyEntry[], replace = false) => {
         if (replace) {
           set({ entries });
         } else {
@@ -84,6 +113,7 @@ export const useEventsStore = create<EventsState>()(
             };
           });
         }
+        await NotificationService.syncAll(get().entries);
       },
 
       getEntriesByDate: (date) => {

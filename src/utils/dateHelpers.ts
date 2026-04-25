@@ -152,3 +152,22 @@ export function formatTime(time: string): string {
 export function nowISO(): string {
   return new Date().toISOString();
 }
+
+/**
+ * Formats a number of days into a human-readable countdown string.
+ * When days are less than 1 month (30 days), shows only days.
+ * Otherwise, shows months and days.
+ */
+export function formatCountdown(days: number): string {
+  if (days === 0) return 'Today! 🎂';
+  if (days === 1) return 'Tomorrow!';
+  if (days < 30) return `${days} days`;
+
+  const months = Math.floor(days / 30);
+  const remainingDays = days % 30;
+
+  const mText = `${months} ${months === 1 ? 'month' : 'months'}`;
+  const dText = remainingDays > 0 ? `, ${remainingDays} ${remainingDays === 1 ? 'day' : 'days'}` : '';
+
+  return `${mText}${dText}`;
+}

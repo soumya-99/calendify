@@ -6,12 +6,12 @@ import React, { useCallback } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, {
-  runOnJS,
   useAnimatedStyle,
   useReducedMotion,
   useSharedValue,
   withSpring,
 } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import { CalendarDay } from './CalendarDay';
 import { CalendarHeader } from './CalendarHeader';
 import { WeekDayLabels } from './WeekDayLabels';
@@ -63,9 +63,9 @@ export function CalendarGrid() {
     .onEnd((event) => {
       if (Math.abs(event.translationX) > 50) {
         if (event.translationX > 0) {
-          runOnJS(goPrevJS)();
+          scheduleOnRN(goPrevJS);
         } else {
-          runOnJS(goNextJS)();
+          scheduleOnRN(goNextJS);
         }
       }
       translateX.value = withSpring(0, Springs.standard);
