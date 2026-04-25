@@ -16,7 +16,7 @@ import * as Calendar from 'expo-calendar';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export default function AddReminderScreen() {
@@ -43,6 +43,8 @@ export default function AddReminderScreen() {
   const [notes, setNotes] = useState('');
   const [colorTag, setColorTag] = useState(DOT_COLORS.REMINDER);
   const [selectedCalendarId, setSelectedCalendarId] = useState(defaultAccount?.id ?? 'local');
+  const [customNotifEnabled, setCustomNotifEnabled] = useState(false);
+  const [notifDateObj, setNotifDateObj] = useState(new Date());
 
   useEffect(() => {
     if (!existingEntry) return;
@@ -54,6 +56,10 @@ export default function AddReminderScreen() {
     setNotes(existingEntry.notes ?? '');
     setColorTag(existingEntry.colorTag);
     setSelectedCalendarId(existingEntry.accountId);
+    if (existingEntry.notificationTime) {
+      setCustomNotifEnabled(true);
+      setNotifDateObj(new Date(existingEntry.notificationTime));
+    }
   }, [existingEntry]);
 
   const handleSave = useCallback(async () => {
@@ -89,6 +95,7 @@ export default function AddReminderScreen() {
       notes: notes.trim() || undefined,
       colorTag,
       accountId: selectedCalendarId,
+      notificationTime: customNotifEnabled ? notifDateObj.toISOString() : undefined,
     };
 
     if (existingEntry) {
@@ -152,6 +159,47 @@ export default function AddReminderScreen() {
 
         <Text style={[TypeScale.labelMedium, styles.fieldLabel, { color: colors.onSurfaceVariant }]}>SYNC CALENDAR</Text>
         <CalendarPicker value={selectedCalendarId} onChange={(id) => setSelectedCalendarId(id)} />
+
+        <View style={styles.notifHeader}>
+          <Text style={[TypeScale.labelMedium, { color: colors.onSurfaceVariant }]}>PREFERRED NOTIFICATION</Text>
+          <Switch
+            value={customNotifEnabled}
+            onValueChange={setCustomNotifEnabled}
+            trackColor={{ false: colors.outline, true: colors.primary }}
+            thumbColor={customNotifEnabled ? colors.onPrimary : colors.surface}
+          />
+        </View>
+        {customNotifEnabled && (
+          <View style={styles.timeRow}>
+            <View style={styles.timeField}>
+              <FormDateTimePicker
+                mode="date"
+                value={notifDateObj}
+                onChange={(d) => {
+                  const newDate = new Date(notifDateObj);
+                  newDate.setFullYear(d.getFullYear(), d.getMonth(), d.getDate());
+                  setNotifDateObj(newDate);
+                }}
+                style={{ marginLeft: Spacing.base, marginRight: Spacing.small, marginBottom: Spacing.compact }}
+              />
+            </View>
+            <View style={styles.timeField}>
+              <FormDateTimePicker
+                mode="time"
+                value={notifDateObj}
+                onChange={(t) => {
+                  const newDate = new Date(notifDateObj);
+                  newDate.setHours(t.getHours(), t.getMinutes());
+                  setNotifDateObj(newDate);
+                }}
+                style={{ marginRight: Spacing.base, marginLeft: Spacing.small, marginBottom: Spacing.compact }}
+              />
+            </View>
+          </View>
+        )}
+        <Text style={[TypeScale.bodySmall, styles.helpText, { color: colors.onSurfaceVariant }]}>
+          Default 10 min before
+        </Text>
 
         <Text style={[TypeScale.labelMedium, styles.fieldLabel, { color: colors.onSurfaceVariant }]}>REPEAT</Text>
         <ScrollView
@@ -229,6 +277,21 @@ const styles = StyleSheet.create({
   titleInput: { fontSize: 20, paddingVertical: Spacing.base },
   notesInput: { minHeight: 100 },
   fieldLabel: { paddingHorizontal: Spacing.base, marginTop: Spacing.base, marginBottom: Spacing.small },
+  notifHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Spacing.base,
+    marginTop: Spacing.base,
+    marginBottom: Spacing.small,
+  },
+  helpText: {
+    paddingHorizontal: Spacing.base,
+    marginBottom: Spacing.small,
+    marginTop: -4,
+  },
+  timeRow: { flexDirection: 'row' },
+  timeField: { flex: 1 },
   repeatScroll: {
     marginHorizontal: Spacing.base,
     marginBottom: Spacing.compact,

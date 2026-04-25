@@ -80,7 +80,8 @@
           "color": "#4CAF9A"
         }
       ],
-      "expo-background-task"
+      "expo-background-task",
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,

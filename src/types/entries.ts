@@ -12,6 +12,7 @@ export interface CalendarEntry {
   accountId: string;
   colorTag: string; // hex color for dot indicator
   notes?: string;
+  notificationTime?: string; // ISO 8601 timestamp for custom notification
   createdAt: string; // ISO timestamp
   updatedAt: string;
 }

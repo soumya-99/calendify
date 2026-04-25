@@ -186,6 +186,7 @@ export default function SettingsScreen() {
   const clearAll = useEventsStore((s) => s.clearAll);
   const clearByType = useEventsStore((s) => s.clearByType);
   const importEntries = useEventsStore((s) => s.importEntries);
+  const addEntries = useEventsStore((s) => s.addEntries);
 
   const { masterEnabled, remindersEnabled, eventsEnabled, birthdaysEnabled } = useNotificationStore();
 
@@ -338,16 +339,16 @@ export default function SettingsScreen() {
           onPress: async () => {
             useLoaderStore.getState().show?.();
             haptics.light();
-            let importCount = 0;
             const start = new Date();
             start.setMonth(start.getMonth() - 2);
             const end = new Date();
             end.setFullYear(end.getFullYear() + 1);
             const osEvents = await Calendar.getEventsAsync([cal.id], start, end);
-            for (const ev of osEvents) {
+            
+            const toImport = osEvents.map(ev => {
               const evDate = new Date(ev.startDate);
               const evEnd = new Date(ev.endDate);
-              addEntry({
+              return {
                 type: 'EVENT',
                 title: ev.title || 'Untitled Event',
                 date: evDate.toISOString().split('T')[0],
@@ -358,19 +359,23 @@ export default function SettingsScreen() {
                 notes: ev.notes,
                 colorTag: '#4285F4',
                 accountId: 'local',
-              });
-              importCount++;
+              };
+            });
+
+            if (toImport.length > 0) {
+              await addEntries(toImport);
             }
+
             useLoaderStore.getState().hide?.();
             haptics.success();
-            Alert.alert('Import Complete', `Successfully imported ${importCount} events from ${cal.title}.`);
+            Alert.alert('Import Complete', `Successfully imported ${toImport.length} events from ${cal.title}.`);
           }
         }
       ]);
     } catch {
       Alert.alert('Error', 'Failed to import from Device calendar');
     }
-  }, [addEntry, haptics]);
+  }, [addEntries, haptics]);
 
   const handleImportBirthdays = useCallback(async () => {
     try {
@@ -394,27 +399,30 @@ export default function SettingsScreen() {
           { text: 'Cancel', style: 'cancel' },
           {
             text: 'Import',
-            onPress: () => {
+            onPress: async () => {
               const defaultAccount = accounts.find((a) => a.isDefault);
-              let count = 0;
-              for (const contact of contactsWithBirthdays) {
+              const toImport = contactsWithBirthdays.map(contact => {
                 const bday = contact.birthday!;
-                if (!bday.month || !bday.day) continue;
+                if (!bday.month || !bday.day) return null;
                 const year = bday.year ?? new Date().getFullYear();
                 const month = String(bday.month).padStart(2, '0');
                 const day = String(bday.day).padStart(2, '0');
                 const dateStr = `${year}-${month}-${day}`;
-                addEntry({
+                return {
                   type: 'BIRTHDAY',
                   title: contact.name || 'Unknown',
                   personName: contact.name || 'Unknown',
                   date: dateStr,
                   accountId: defaultAccount?.id ?? 'local',
-                });
-                count++;
+                };
+              }).filter((b): b is any => b !== null);
+
+              if (toImport.length > 0) {
+                await addEntries(toImport);
               }
+
               haptics.success();
-              Alert.alert('Done', `Imported ${count} birthdays to your default account.`);
+              Alert.alert('Done', `Imported ${toImport.length} birthdays to your default account.`);
             },
           },
         ]
@@ -422,7 +430,7 @@ export default function SettingsScreen() {
     } catch {
       Alert.alert('Error', 'Failed to access contacts.');
     }
-  }, [accounts, addEntry, haptics]);
+  }, [accounts, addEntries, haptics]);
 
   const handleExportData = useCallback(async () => {
     Alert.alert('Export Data', 'Do you want to export your current accounts and entries?', [

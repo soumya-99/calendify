@@ -103,7 +103,7 @@ const NotificationSettingsSheet = forwardRef<NotificationSettingsSheetRef>((_, r
               </View>
               <View style={styles.optionText}>
                 <Text style={[TypeScale.titleSmall, { color: colors.onSurface }]}>Events</Text>
-                <Text style={[TypeScale.bodySmall, { color: colors.onSurfaceVariant }]}>10 min before start time</Text>
+                <Text style={[TypeScale.bodySmall, { color: colors.onSurfaceVariant }]}>Desired time of notification</Text>
               </View>
               <Switch
                 value={eventsEnabled}

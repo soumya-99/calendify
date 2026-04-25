@@ -100,8 +100,11 @@ export class NotificationService {
     Linking.openSettings();
   }
 
-  static async scheduleEntry(entry: AnyEntry, persistMap = true): Promise<string | null> {
+  static async scheduleEntry(entry: AnyEntry, persistMap = true): Promise<string[] | null> {
     const prefs = useNotificationStore.getState();
+
+    // Always clean up existing notifications for this entry first
+    await this.cancelEntry(entry.id);
 
     if (!prefs.masterEnabled) return null;
     if (entry.type === 'REMINDER' && !prefs.remindersEnabled) return null;
@@ -109,10 +112,8 @@ export class NotificationService {
     if (entry.type === 'BIRTHDAY' && !prefs.birthdaysEnabled) return null;
     if (entry.type === 'TASK') return null;
 
-    const trigger = this.buildTrigger(entry);
-    if (!trigger) return null;
-
-    await this.cancelEntry(entry.id);
+    const triggers = this.buildTriggers(entry);
+    if (triggers.length === 0) return null;
 
     const content: Notifications.NotificationContentInput = {
       title: this.buildTitle(entry),
@@ -122,26 +123,34 @@ export class NotificationService {
       color: COLOR_MAP[entry.type] ?? '#4CAF9A',
     };
 
-    const notifId = await Notifications.scheduleNotificationAsync({ content, trigger });
+    const notifIds: string[] = [];
+    for (const trigger of triggers) {
+      try {
+        const id = await Notifications.scheduleNotificationAsync({ content, trigger });
+        notifIds.push(id);
+      } catch (err) {
+        // Silently fail for individual trigger failures (e.g. past dates)
+      }
+    }
 
-    if (persistMap) {
+    if (persistMap && notifIds.length > 0) {
       const map = this.getIdMap();
-      map[entry.id] = { notifId, entryId: entry.id, type: entry.type as NotifiableEntryType };
+      map[entry.id] = { notifIds, entryId: entry.id, type: entry.type as NotifiableEntryType };
       storage.set(MMKV_KEYS.NOTIF_ID_MAP, JSON.stringify(map));
     }
 
-    return notifId;
+    return notifIds;
   }
 
   static async cancelEntry(entryId: string): Promise<void> {
     const map = this.getIdMap();
     const mapEntry = map[entryId];
-    if (mapEntry?.notifId) {
+    if (mapEntry?.notifIds) {
       try {
-        await Notifications.cancelScheduledNotificationAsync(mapEntry.notifId);
-      } catch {
-        // ignore
-      }
+        await Promise.all(
+          mapEntry.notifIds.map(id => Notifications.cancelScheduledNotificationAsync(id).catch(() => { }))
+        );
+      } catch (e) { }
       delete map[entryId];
       storage.set(MMKV_KEYS.NOTIF_ID_MAP, JSON.stringify(map));
     }
@@ -151,18 +160,23 @@ export class NotificationService {
     const map = this.getIdMap();
     const toCancel = Object.values(map).filter((e) => e.type === type);
     await Promise.all(
-      toCancel.map((e) => Notifications.cancelScheduledNotificationAsync(e.notifId).catch(() => { }))
+      toCancel.flatMap(e => e.notifIds.map(id => Notifications.cancelScheduledNotificationAsync(id).catch(() => { })))
     );
     toCancel.forEach((e) => delete map[e.entryId]);
     storage.set(MMKV_KEYS.NOTIF_ID_MAP, JSON.stringify(map));
   }
 
   static async syncAll(entries: AnyEntry[]): Promise<void> {
-    await Notifications.cancelAllScheduledNotificationsAsync();
-    storage.set(MMKV_KEYS.NOTIF_ID_MAP, JSON.stringify({}));
-
     const prefs = useNotificationStore.getState();
-    if (!prefs.masterEnabled) return;
+    if (!prefs.masterEnabled) {
+      await Notifications.cancelAllScheduledNotificationsAsync();
+      storage.set(MMKV_KEYS.NOTIF_ID_MAP, JSON.stringify({}));
+      return;
+    }
+
+    // Instead of full cancelAll which causes flashes/jitter, we can be more surgical
+    // but for simplicity and reliability in bulk operations, we still use it sparingly.
+    await Notifications.cancelAllScheduledNotificationsAsync();
 
     const eligible = entries
       .filter((e) => {
@@ -174,23 +188,24 @@ export class NotificationService {
         return true;
       })
       .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .slice(0, 60);
+      .slice(0, 50);
 
     const newMap: NotifIdMap = {};
-    const CHUNK = 10;
+    const CHUNK = 5;
     for (let i = 0; i < eligible.length; i += CHUNK) {
       const chunk = eligible.slice(i, i + CHUNK);
       const results = await Promise.all(
         chunk.map(async (e) => {
-          const notifId = await this.scheduleEntry(e, false);
-          return { entryId: e.id, notifId, type: e.type as NotifiableEntryType };
+          // Schedule without persisting each time to avoid MMKV overhead
+          const ids = await this.scheduleEntry(e, false);
+          return { entryId: e.id, notifIds: ids, type: e.type as NotifiableEntryType };
         })
       );
 
       results.forEach((res) => {
-        if (res.notifId) {
+        if (res.notifIds && res.notifIds.length > 0) {
           newMap[res.entryId] = {
-            notifId: res.notifId,
+            notifIds: res.notifIds,
             entryId: res.entryId,
             type: res.type,
           };
@@ -208,73 +223,93 @@ export class NotificationService {
   ): Promise<void> {
     if (enabled) {
       const toAdd = entries.filter((e) => e.type === type && this.isFuture(e)).slice(0, 20);
-      await Promise.all(toAdd.map((e) => this.scheduleEntry(e)));
+      for (const e of toAdd) {
+        await this.scheduleEntry(e);
+      }
     } else {
       await this.cancelByType(type);
     }
   }
 
-  private static buildTrigger(entry: AnyEntry): Notifications.NotificationTriggerInput | null {
+  private static buildTriggers(entry: AnyEntry): Notifications.NotificationTriggerInput[] {
+    const triggers: Notifications.NotificationTriggerInput[] = [];
     const channelId = CHANNEL_MAP[entry.type];
+    const nowBuffer = Date.now() + 10000;
 
-    if (entry.type === 'REMINDER') {
-      const r = entry as Reminder;
-      const [h, m] = r.time.split(':').map(Number);
-      const fireAt = new Date(r.date);
-      fireAt.setHours(h, m, 0, 0);
-      if (fireAt <= new Date()) return null;
-
-      if (r.repeat === 'DAILY') {
-        return {
-          type: Notifications.SchedulableTriggerInputTypes.DAILY,
+    // 1. Custom Preferred Time
+    if (entry.notificationTime) {
+      const customTime = new Date(entry.notificationTime).getTime();
+      if (customTime > nowBuffer) {
+        triggers.push({
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: new Date(customTime),
           channelId,
-          hour: h,
-          minute: m,
-        };
+        });
       }
-      if (r.repeat === 'WEEKLY') {
-        return {
-          type: Notifications.SchedulableTriggerInputTypes.WEEKLY,
-          channelId,
-          weekday: fireAt.getDay() + 1,
-          hour: h,
-          minute: m,
-        };
-      }
-      return {
-        type: Notifications.SchedulableTriggerInputTypes.DATE,
-        channelId,
-        date: fireAt,
-      };
     }
 
+    // 2. Default Time (10 mins before)
+    let eventTime: Date | null = null;
     if (entry.type === 'EVENT') {
       const e = entry as CalendarEvent;
+      eventTime = new Date(e.date);
       const [h, m] = e.startTime.split(':').map(Number);
-      const fireAt = new Date(e.date);
-      fireAt.setHours(h, m, 0, 0);
-      fireAt.setMinutes(fireAt.getMinutes() - 10);
-      if (fireAt <= new Date()) return null;
-      return {
-        type: Notifications.SchedulableTriggerInputTypes.DATE,
-        channelId,
-        date: fireAt,
-      };
+      eventTime.setHours(h, m, 0, 0);
+    } else if (entry.type === 'REMINDER') {
+      const r = entry as Reminder;
+      eventTime = new Date(r.date);
+      const [h, m] = r.time.split(':').map(Number);
+      eventTime.setHours(h, m, 0, 0);
+
+      // Next occurrence for repeats
+      if (eventTime.getTime() < Date.now()) {
+        if (r.repeat === 'DAILY') {
+          const today = new Date();
+          today.setHours(h, m, 0, 0);
+          eventTime = today.getTime() > Date.now() ? today : new Date(today.getTime() + 86400000);
+        } else if (r.repeat === 'WEEKLY') {
+          while (eventTime.getTime() < Date.now()) {
+            eventTime.setDate(eventTime.getDate() + 7);
+          }
+        }
+      }
+    } else if (entry.type === 'BIRTHDAY') {
+      const b = entry as Birthday;
+      eventTime = new Date(b.date);
+      eventTime.setHours(9, 0, 0, 0);
+      const currentYear = new Date().getFullYear();
+      eventTime.setFullYear(currentYear);
+      if (eventTime.getTime() < Date.now()) {
+        eventTime.setFullYear(currentYear + 1);
+      }
     }
 
-    if (entry.type === 'BIRTHDAY') {
-      const d = new Date(entry.date);
-      return {
-        type: Notifications.SchedulableTriggerInputTypes.YEARLY,
-        channelId,
-        day: d.getDate(),
-        month: d.getMonth(),
-        hour: 9,
-        minute: 0,
-      };
+    if (eventTime) {
+      const defaultTime = eventTime.getTime() - 10 * 60 * 1000;
+      if (defaultTime > nowBuffer) {
+        triggers.push({
+          type: Notifications.SchedulableTriggerInputTypes.DATE,
+          date: new Date(defaultTime),
+          channelId,
+        });
+      }
     }
 
-    return null;
+    // De-duplicate by timestamp
+    const unique: Notifications.NotificationTriggerInput[] = [];
+    const seen = new Set<number>();
+    for (const t of triggers) {
+      if (t && typeof t === 'object' && 'date' in t) {
+        const dt = t as Notifications.DateTriggerInput;
+        const time = dt.date instanceof Date ? dt.date.getTime() : (dt.date as number);
+        if (time && !seen.has(time)) {
+          seen.add(time);
+          unique.push(t);
+        }
+      }
+    }
+
+    return unique;
   }
 
   private static buildTitle(entry: AnyEntry): string {

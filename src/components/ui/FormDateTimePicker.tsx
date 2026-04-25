@@ -1,24 +1,54 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Platform, Text, StyleSheet } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
+import DateTimePicker, { DateTimePickerAndroid } from '@react-native-community/datetimepicker';
 import { HapticButton } from './HapticButton';
 import { useThemeColors } from '@/src/hooks/useThemeColors';
 import { TypeScale } from '@/src/theme/typography';
 import { Spacing } from '@/src/theme/spacing';
 
-export function FormDateTimePicker({ mode, value, onChange, style }: { mode: 'date' | 'time', value: Date, onChange: (d: Date) => void, style?: any }) {
+export function FormDateTimePicker({ mode, value, onChange, style }: { mode: 'date' | 'time' | 'datetime', value: Date, onChange: (d: Date) => void, style?: any }) {
   const colors = useThemeColors();
   const [show, setShow] = useState(Platform.OS === 'ios');
+  const isPickerOpen = useRef(false);
+
+  useEffect(() => {
+    return () => {
+      if (Platform.OS === 'android' && isPickerOpen.current) {
+        try {
+          // 'datetime' mode on Android usually maps to 'date' or 'time' internally depending on picker choice,
+          // but we dismiss the base mode passed in.
+          DateTimePickerAndroid.dismiss(mode === 'datetime' ? 'date' : mode);
+        } catch (_) {}
+      }
+    };
+  }, [mode]);
+
+  const openAndroidPicker = () => {
+    isPickerOpen.current = true;
+    DateTimePickerAndroid.open({
+      value,
+      onChange: (event, selectedDate) => {
+        isPickerOpen.current = false;
+        if (event.type === 'set' && selectedDate) {
+          onChange(selectedDate);
+        }
+      },
+      mode: mode === 'datetime' ? 'date' : mode,
+      display: 'default',
+    });
+  };
 
   const formatted = mode === 'date' 
     ? value.toISOString().split('T')[0] 
-    : value.toTimeString().slice(0, 5);
+    : mode === 'time'
+      ? value.toTimeString().slice(0, 5)
+      : value.toLocaleString([], { dateStyle: 'short', timeStyle: 'short' });
 
   return (
     <>
       {Platform.OS !== 'ios' && (
         <HapticButton
-          onPress={() => setShow(true)}
+          onPress={openAndroidPicker}
           hapticStyle="selection"
           style={[styles.btn, { backgroundColor: colors.surfaceVariant }, style]}
         >
@@ -26,20 +56,16 @@ export function FormDateTimePicker({ mode, value, onChange, style }: { mode: 'da
         </HapticButton>
       )}
 
-      {show && (
+      {Platform.OS === 'ios' && show && (
         <DateTimePicker
           value={value}
           mode={mode}
           display="default"
-          onValueChange={(event, selectedDate) => {
-            if (Platform.OS === 'android') setShow(false);
+          onChange={(event, selectedDate) => {
             if (selectedDate) onChange(selectedDate);
           }}
-          onDismiss={() => {
-            if (Platform.OS === 'android') setShow(false);
-          }}
           themeVariant="light"
-          style={Platform.OS === 'ios' ? [styles.iosPicker, style] : undefined}
+          style={[styles.iosPicker, style]}
         />
       )}
     </>

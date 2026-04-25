@@ -1,5 +1,6 @@
 import { MMKV_KEYS } from '@/src/constants/mmkvKeys';
 import { mmkvStorage } from '@/src/hooks/useMMKV';
+import { NotificationService } from '@/src/services/NotificationService';
 import type {
   AnyEntry,
   Birthday,
@@ -12,17 +13,17 @@ import { nowISO } from '@/src/utils/dateHelpers';
 import { generateId } from '@/src/utils/generateId';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
-import { NotificationService } from '@/src/services/NotificationService';
 
 interface EventsState {
   entries: AnyEntry[];
 
   // CRUD
-  addEntry: (entry: Record<string, unknown>) => string;
+  addEntry: (entry: Record<string, unknown>) => Promise<string>;
   updateEntry: (id: string, updates: Record<string, unknown>) => void;
   deleteEntry: (id: string) => void;
 
   // Bulk operations
+  addEntries: (entries: Record<string, unknown>[]) => Promise<void>;
   importEntries: (entries: AnyEntry[], replace?: boolean) => void;
   clearAll: () => void;
   clearByType: (type: EntryType) => void;
@@ -51,23 +52,36 @@ export const useEventsStore = create<EventsState>()(
         entries: state.entries.filter((e) => e.type !== type)
       })),
 
-      addEntry: (entry: Record<string, unknown>) => {
+      addEntry: async (entry: Record<string, unknown>) => {
         const id = generateId();
         const now = nowISO();
         const newEntry = { ...entry, id, createdAt: now, updatedAt: now } as unknown as AnyEntry;
         set((state) => ({ entries: [...state.entries, newEntry] as AnyEntry[] }));
-        NotificationService.scheduleEntry(newEntry);
+        await NotificationService.scheduleEntry(newEntry);
         return id;
       },
 
-      updateEntry: (id: string, updates: Record<string, unknown>) => {
+      addEntries: async (entriesToImport: Record<string, unknown>[]) => {
+        const now = nowISO();
+        const newEntries = entriesToImport.map(e => ({
+          ...e,
+          id: generateId(),
+          createdAt: now,
+          updatedAt: now
+        })) as unknown as AnyEntry[];
+        
+        set((state) => ({ entries: [...state.entries, ...newEntries] as AnyEntry[] }));
+        await NotificationService.syncAll(get().entries);
+      },
+
+      updateEntry: async (id: string, updates: Record<string, unknown>) => {
         set((state) => ({
           entries: state.entries.map((e) =>
             e.id === id ? ({ ...e, ...updates, updatedAt: nowISO() } as AnyEntry) : e
           ),
         }));
         const updated = get().entries.find((e) => e.id === id);
-        if (updated) NotificationService.scheduleEntry(updated);
+        if (updated) await NotificationService.scheduleEntry(updated);
       },
 
       deleteEntry: (id) => {
@@ -77,7 +91,7 @@ export const useEventsStore = create<EventsState>()(
         NotificationService.cancelEntry(id);
       },
 
-      importEntries: (entries, replace = false) => {
+      importEntries: async (entries: AnyEntry[], replace = false) => {
         if (replace) {
           set({ entries });
         } else {
@@ -93,6 +107,7 @@ export const useEventsStore = create<EventsState>()(
             };
           });
         }
+        await NotificationService.syncAll(get().entries);
       },
 
       getEntriesByDate: (date) => {

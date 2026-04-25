@@ -10,7 +10,7 @@ export interface NotificationPreferences {
 
 /** Stored per scheduled notification so we can cancel it later */
 export interface NotifIdMapEntry {
-  notifId:  string;
+  notifIds: string[];
   entryId:  string;
   type:     NotifiableEntryType;
 }

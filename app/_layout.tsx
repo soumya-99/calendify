@@ -96,14 +96,14 @@ function RootLayoutInner() {
       appSub.remove();
       tapSub.remove();
     };
-  }, [entries, router]);
+  }, [router]); // Removed entries from deps to prevent redundant syncAll on every change
 
   // Master switch / Entries changes re-sync
   useEffect(() => {
     if (masterEnabled) {
       NotificationService.syncAll(entries);
     }
-  }, [entries, masterEnabled]);
+  }, [masterEnabled]); // Remove entries from deps to avoid constant cancelAll/reschedule cycles
 
   const isDark = themeMode === 'system' ? systemScheme === 'dark' : themeMode === 'dark';
 
