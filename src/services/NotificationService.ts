@@ -1,6 +1,7 @@
 import { storage } from '@/src/hooks/useMMKV';
 import * as Device from 'expo-device';
 import * as Notifications from 'expo-notifications';
+import { PermissionResponse, PermissionStatus } from 'expo-notifications';
 import { Linking, Platform } from 'react-native';
 import { MMKV_KEYS } from '../constants/mmkvKeys';
 import { useNotificationStore } from '../stores/useNotificationStore';
@@ -66,8 +67,10 @@ export class NotificationService {
 
     await ensureChannels();
 
-    const currentPerms = await Notifications.getPermissionsAsync();
-    if (currentPerms.status === 'granted') {
+    const currentPerms = await Notifications.getPermissionsAsync() as PermissionResponse;
+    const currentStatus = currentPerms.status;
+
+    if (currentStatus === PermissionStatus.GRANTED) {
       useNotificationStore.getState().setMasterEnabled(true);
       return 'granted';
     }
@@ -78,21 +81,22 @@ export class NotificationService {
         allowBadge: false,
         allowSound: true,
       },
-    });
+    }) as PermissionResponse;
 
-    useNotificationStore.getState().setMasterEnabled(requestedPerms.status === 'granted');
-    return requestedPerms.status === 'granted'
+    const requestedStatus = requestedPerms.status;
+    useNotificationStore.getState().setMasterEnabled(requestedStatus === PermissionStatus.GRANTED);
+
+    return requestedStatus === PermissionStatus.GRANTED
       ? 'granted'
-      : requestedPerms.status === 'undetermined'
+      : requestedStatus === PermissionStatus.UNDETERMINED
         ? 'undetermined'
         : 'denied';
   }
 
   static async getPermissionStatus(): Promise<'granted' | 'denied' | 'undetermined'> {
     if (!Device.isDevice) return 'denied';
-    const perms = await Notifications.getPermissionsAsync();
-    // status is PermissionStatus: 'granted' | 'denied' | 'undetermined'
-    return perms.status;
+    const perms = await Notifications.getPermissionsAsync() as PermissionResponse;
+    return perms.status as 'granted' | 'denied' | 'undetermined';
   }
 
   static openOSSettings(): void {
@@ -267,7 +271,7 @@ export class NotificationService {
         type: Notifications.SchedulableTriggerInputTypes.YEARLY,
         channelId,
         day: d.getDate(),
-        month: d.getMonth() + 1,
+        month: d.getMonth(),
         hour: 9,
         minute: 0,
       };
