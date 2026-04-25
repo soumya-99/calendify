@@ -76,10 +76,7 @@ function RootLayoutInner() {
       }
     });
 
-    // 2. Initial sync
-    NotificationService.syncAll(entries);
-
-    // 4. Foreground re-sync
+    // 2. Foreground re-sync
     const appSub = AppState.addEventListener('change', (status: AppStateStatus) => {
       if (status === 'active') NotificationService.syncAll(entries);
     });
@@ -96,14 +93,14 @@ function RootLayoutInner() {
       appSub.remove();
       tapSub.remove();
     };
-  }, [router]); // Removed entries from deps to prevent redundant syncAll on every change
+  }, [router, entries]); // Added entries to ensure foreground sync uses latest data
 
   // Master switch / Entries changes re-sync
   useEffect(() => {
     if (masterEnabled) {
       NotificationService.syncAll(entries);
     }
-  }, [masterEnabled]); // Remove entries from deps to avoid constant cancelAll/reschedule cycles
+  }, [masterEnabled, entries]); // Added entries so new events are scheduled immediately
 
   const isDark = themeMode === 'system' ? systemScheme === 'dark' : themeMode === 'dark';
 
