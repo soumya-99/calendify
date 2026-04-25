@@ -1,8 +1,8 @@
+import { Spacing } from '@/src/theme/spacing';
 import React from 'react';
 import { Platform, StyleProp, StyleSheet, ViewStyle } from 'react-native';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Spacing } from '@/src/theme/spacing';
 
 interface KeyboardAwareFormScrollViewProps {
   children: React.ReactNode;

@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -11,11 +11,11 @@ import { useThemeColors } from '@/src/hooks/useThemeColors';
 import { useHaptics } from '@/src/hooks/useHaptics';
 import { useEventsStore } from '@/src/stores/useEventsStore';
 import { TypeScale } from '@/src/theme/typography';
-import { Spacing } from '@/src/theme/spacing';
-import { ShapeScale, Springs } from '@/src/theme/motion';
+import { Springs } from '@/src/theme/motion';
 import { CheckCircle2, Circle } from 'lucide-react-native';
 import { DOT_COLORS } from '@/src/constants/dotColors';
 import type { Task } from '@/src/types/entries';
+import { BaseCard } from './BaseCard';
 
 interface TaskCardProps {
   task: Task;
@@ -53,83 +53,51 @@ export function TaskCard({ task, onPress }: TaskCardProps) {
   const priorityColor = PRIORITY_COLORS[task.priority] ?? colors.onSurfaceVariant;
 
   return (
-    <HapticButton
+    <BaseCard
+      title={task.title}
+      titleStyle={{
+        textDecorationLine: task.completed ? 'line-through' : 'none',
+        color: task.completed ? colors.onSurfaceVariant : colors.onSurface,
+      }}
       onPress={onPress}
-      hapticStyle="light"
-      style={[
-        styles.card,
-        {
-          backgroundColor: `${colors.surfaceVariant}99`,
-        },
-      ]}
-      accessibilityLabel={`Task: ${task.title}, priority ${task.priority}, ${task.completed ? 'completed' : 'not completed'}`}
-    >
-      <View style={[styles.colorBar, { backgroundColor: priorityColor }]} />
-      <View style={styles.content}>
-        <View style={styles.row}>
-          <HapticButton
-            onPress={handleToggle}
-            hapticStyle="medium"
-            style={styles.checkButton}
-            accessibilityLabel={task.completed ? 'Mark incomplete' : 'Mark complete'}
-          >
-            <Animated.View style={checkAnimStyle}>
-              {task.completed ? (
-                <CheckCircle2 size={22} color={DOT_COLORS.TASK} strokeWidth={1.75} />
-              ) : (
-                <Circle size={22} color={colors.outline} strokeWidth={1.75} />
-              )}
-            </Animated.View>
-          </HapticButton>
-          <View style={styles.textContainer}>
-            <Text
-              style={[
-                TypeScale.titleMedium,
-                {
-                  color: task.completed ? colors.onSurfaceVariant : colors.onSurface,
-                  textDecorationLine: task.completed ? 'line-through' : 'none',
-                },
-              ]}
-              numberOfLines={1}
-            >
-              {task.title}
+      accentColor={priorityColor}
+      icon={
+        <HapticButton
+          onPress={handleToggle}
+          hapticStyle="medium"
+          style={{ padding: 4 }}
+          accessibilityLabel={task.completed ? 'Mark incomplete' : 'Mark complete'}
+        >
+          <Animated.View style={checkAnimStyle}>
+            {task.completed ? (
+              <CheckCircle2 size={24} color={DOT_COLORS.TASK} strokeWidth={2} />
+            ) : (
+              <Circle size={24} color={colors.outline} strokeWidth={2} />
+            )}
+          </Animated.View>
+        </HapticButton>
+      }
+      subtitle={
+        <View style={{ gap: 4 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: priorityColor }} />
+            <Text style={[TypeScale.labelSmall, { color: priorityColor, fontWeight: '700', letterSpacing: 0.5 }]}>
+              {task.priority} PRIORITY
             </Text>
             {task.dueDate && (
-              <Text style={[TypeScale.bodySmall, { color: colors.onSurfaceVariant }]}>
-                Due: {task.dueDate}
-              </Text>
+              <>
+                <Text style={{ color: colors.outlineVariant }}>•</Text>
+                <Text style={[TypeScale.bodySmall, { color: colors.onSurfaceVariant }]}>
+                  Due: {task.dueDate}
+                </Text>
+              </>
             )}
           </View>
         </View>
-      </View>
-    </HapticButton>
+      }
+      style={{
+        opacity: task.completed ? 0.7 : 1,
+      }}
+    />
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    flexDirection: 'row',
-    borderRadius: ShapeScale.large.borderRadius,
-    overflow: 'hidden',
-    marginBottom: Spacing.small,
-    marginHorizontal: Spacing.base,
-  },
-  colorBar: {
-    width: 4,
-  },
-  content: {
-    flex: 1,
-    padding: Spacing.compact,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  checkButton: {
-    marginRight: Spacing.compact,
-    padding: Spacing.micro,
-  },
-  textContainer: {
-    flex: 1,
-  },
-});

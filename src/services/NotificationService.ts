@@ -60,7 +60,8 @@ const COLOR_MAP: Record<string, string> = {
 
 export class NotificationService {
   static async requestPermissions(): Promise<'granted' | 'denied' | 'undetermined'> {
-    if (!Device.isDevice) return 'denied';
+    // Allow emulators for Android, but keep restriction for iOS if needed (though usually okay to try)
+    if (Platform.OS === 'ios' && !Device.isDevice) return 'denied';
 
     await ensureChannels();
 
@@ -91,7 +92,6 @@ export class NotificationService {
   }
 
   static async getPermissionStatus(): Promise<'granted' | 'denied' | 'undetermined'> {
-    if (!Device.isDevice) return 'denied';
     const perms = await Notifications.getPermissionsAsync() as PermissionResponse;
     return perms.status as 'granted' | 'denied' | 'undetermined';
   }
@@ -106,7 +106,15 @@ export class NotificationService {
     // Always clean up existing notifications for this entry first
     await this.cancelEntry(entry.id);
 
-    if (!prefs.masterEnabled) return null;
+    // If master is not enabled, we still check permissions because it might have been granted in OS
+    if (!prefs.masterEnabled) {
+      const status = await this.getPermissionStatus();
+      if (status === 'granted') {
+        prefs.setMasterEnabled(true);
+      } else {
+        return null;
+      }
+    }
     if (entry.type === 'REMINDER' && !prefs.remindersEnabled) return null;
     if (entry.type === 'EVENT' && !prefs.eventsEnabled) return null;
     if (entry.type === 'BIRTHDAY' && !prefs.birthdaysEnabled) return null;
@@ -166,6 +174,9 @@ export class NotificationService {
     storage.set(MMKV_KEYS.NOTIF_ID_MAP, JSON.stringify(map));
   }
 
+  private static isSyncing = false;
+  private static syncTimeout: NodeJS.Timeout | null = null;
+
   static async syncAll(entries: AnyEntry[]): Promise<void> {
     const prefs = useNotificationStore.getState();
     if (!prefs.masterEnabled) {
@@ -174,11 +185,18 @@ export class NotificationService {
       return;
     }
 
-    // Instead of full cancelAll which causes flashes/jitter, we can be more surgical
-    // but for simplicity and reliability in bulk operations, we still use it sparingly.
-    await Notifications.cancelAllScheduledNotificationsAsync();
+    // Debounce to prevent rapid multiple calls (e.g. from multiple useEffects)
+    if (this.syncTimeout) clearTimeout(this.syncTimeout);
+    
+    this.syncTimeout = setTimeout(async () => {
+      if (this.isSyncing) return;
+      this.isSyncing = true;
 
-    const eligible = entries
+      try {
+        // Clear all to ensure a fresh slate
+        await Notifications.cancelAllScheduledNotificationsAsync();
+        
+        const eligible = entries
       .filter((e) => {
         if (!this.isFuture(e)) return false;
         if (e.type === 'REMINDER' && !prefs.remindersEnabled) return false;
@@ -187,8 +205,20 @@ export class NotificationService {
         if (e.type === 'TASK') return false;
         return true;
       })
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
-      .slice(0, 50);
+      .sort((a, b) => {
+        const da = new Date(a.date).getTime();
+        const db = new Date(b.date).getTime();
+        if (da !== db) return da - db;
+        
+        // Same day, sort by time if possible
+        const getTimeVal = (e: AnyEntry) => {
+          if (e.type === 'EVENT') return (e as CalendarEvent).startTime;
+          if (e.type === 'REMINDER') return (e as Reminder).time;
+          return '00:00';
+        };
+        return getTimeVal(a).localeCompare(getTimeVal(b));
+      })
+      .slice(0, 60); // Increased limit slightly
 
     const newMap: NotifIdMap = {};
     const CHUNK = 5;
@@ -213,7 +243,13 @@ export class NotificationService {
       });
     }
 
-    storage.set(MMKV_KEYS.NOTIF_ID_MAP, JSON.stringify(newMap));
+        storage.set(MMKV_KEYS.NOTIF_ID_MAP, JSON.stringify(newMap));
+      } catch (err) {
+        console.error('syncAll error:', err);
+      } finally {
+        this.isSyncing = false;
+      }
+    }, 100); // 100ms debounce
   }
 
   static async onTypeToggle(
@@ -234,21 +270,40 @@ export class NotificationService {
   private static buildTriggers(entry: AnyEntry): Notifications.NotificationTriggerInput[] {
     const triggers: Notifications.NotificationTriggerInput[] = [];
     const channelId = CHANNEL_MAP[entry.type];
-    const nowBuffer = Date.now() + 10000;
+    const now = Date.now();
+    const nowBuffer = now + 10000;
 
-    // 1. Custom Preferred Time
-    if (entry.notificationTime) {
-      const customTime = new Date(entry.notificationTime).getTime();
-      if (customTime > nowBuffer) {
-        triggers.push({
-          type: Notifications.SchedulableTriggerInputTypes.DATE,
-          date: new Date(customTime),
-          channelId,
-        });
+    if (entry.type === 'BIRTHDAY') {
+      const b = entry as Birthday;
+      const bday = new Date(b.date);
+      bday.setHours(0, 0, 0, 0);
+
+      // Get upcoming birthday (this year or next)
+      let birthdayDate = new Date(bday);
+      birthdayDate.setFullYear(new Date().getFullYear());
+      if (birthdayDate.getTime() < now) {
+        birthdayDate.setFullYear(birthdayDate.getFullYear() + 1);
       }
+
+      const birthdayTime = birthdayDate.getTime();
+      const triggersTimes = [
+        birthdayTime - 24 * 60 * 60 * 1000, // 24h before
+        birthdayTime - 12 * 60 * 60 * 1000  // 12h before
+      ];
+
+      for (const time of triggersTimes) {
+        if (time > nowBuffer) {
+          triggers.push({
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: new Date(time),
+            channelId,
+          });
+        }
+      }
+      return triggers;
     }
 
-    // 2. Default Time (10 mins before)
+    // Handle Events and Reminders
     let eventTime: Date | null = null;
     if (entry.type === 'EVENT') {
       const e = entry as CalendarEvent;
@@ -261,41 +316,56 @@ export class NotificationService {
       const [h, m] = r.time.split(':').map(Number);
       eventTime.setHours(h, m, 0, 0);
 
-      // Next occurrence for repeats
-      if (eventTime.getTime() < Date.now()) {
+      // Handle repeating reminders for next trigger
+      if (eventTime.getTime() < now) {
         if (r.repeat === 'DAILY') {
-          const today = new Date();
-          today.setHours(h, m, 0, 0);
-          eventTime = today.getTime() > Date.now() ? today : new Date(today.getTime() + 86400000);
+          eventTime.setDate(new Date().getDate());
+          if (eventTime.getTime() < now) eventTime.setDate(eventTime.getDate() + 1);
         } else if (r.repeat === 'WEEKLY') {
-          while (eventTime.getTime() < Date.now()) {
+          while (eventTime.getTime() < now) {
             eventTime.setDate(eventTime.getDate() + 7);
           }
         }
       }
-    } else if (entry.type === 'BIRTHDAY') {
-      const b = entry as Birthday;
-      eventTime = new Date(b.date);
-      eventTime.setHours(9, 0, 0, 0);
-      const currentYear = new Date().getFullYear();
-      eventTime.setFullYear(currentYear);
-      if (eventTime.getTime() < Date.now()) {
-        eventTime.setFullYear(currentYear + 1);
-      }
     }
 
     if (eventTime) {
-      const defaultTime = eventTime.getTime() - 10 * 60 * 1000;
-      if (defaultTime > nowBuffer) {
-        triggers.push({
-          type: Notifications.SchedulableTriggerInputTypes.DATE,
-          date: new Date(defaultTime),
-          channelId,
-        });
+      const et = eventTime.getTime();
+      const tenMinMark = et - 10 * 60 * 1000;
+
+      if (entry.notificationTime) {
+        const customTime = new Date(entry.notificationTime).getTime();
+
+        if (customTime > nowBuffer) {
+          triggers.push({
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: new Date(customTime),
+            channelId,
+          });
+        }
+
+        // Add 10-min mark only if customTime is EARLIER than 10-min mark (i.e. > 10 mins before)
+        // If customTime is within 10 mins (later than tenMinMark), we only show customTime.
+        if (customTime < tenMinMark && tenMinMark > nowBuffer) {
+          triggers.push({
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: new Date(tenMinMark),
+            channelId,
+          });
+        }
+      } else {
+        // No custom time, just show 10-min mark
+        if (tenMinMark > nowBuffer) {
+          triggers.push({
+            type: Notifications.SchedulableTriggerInputTypes.DATE,
+            date: new Date(tenMinMark),
+            channelId,
+          });
+        }
       }
     }
 
-    // De-duplicate by timestamp
+    // De-duplicate by timestamp (safety check)
     const unique: Notifications.NotificationTriggerInput[] = [];
     const seen = new Set<number>();
     for (const t of triggers) {
@@ -316,7 +386,7 @@ export class NotificationService {
     const map: Record<string, string> = {
       REMINDER: '⏰ Reminder',
       EVENT: '📅 Upcoming event',
-      BIRTHDAY: '🎂 Birthday today',
+      BIRTHDAY: '🎂 Upcoming Birthday',
     };
     return `${map[entry.type] ?? ''} — ${entry.title}`;
   }
@@ -329,7 +399,7 @@ export class NotificationService {
     if (entry.type === 'BIRTHDAY') {
       const b = entry as Birthday;
       const age = b.birthYear ? ` turns ${new Date().getFullYear() - b.birthYear}` : '';
-      return `${b.personName}${age} today. Don't forget to wish them! 🎉`;
+      return `${b.personName}${age} is having a birthday soon! Don't forget to wish them! 🎉`;
     }
     return (entry as Reminder).notes ?? 'Time to check this reminder.';
   }
