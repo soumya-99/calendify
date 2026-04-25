@@ -205,14 +205,14 @@ export default function SettingsScreen() {
     setHolidaysEnabled,
   } = useNotificationStore();
 
-  const activeNotifsCount = [remindersEnabled, eventsEnabled, birthdaysEnabled, holidaysEnabled].filter(Boolean).length;
+  const activeNotifsCount = [remindersEnabled, eventsEnabled, birthdaysEnabled].filter(Boolean).length;
   const notifSummaryText = !masterEnabled
     ? 'Off'
-    : activeNotifsCount === 4
+    : activeNotifsCount === 3
       ? 'All on'
       : activeNotifsCount === 0
         ? 'All off'
-        : `${activeNotifsCount} of 4 on`;
+        : `${activeNotifsCount} of 3 on`;
 
 
   const [themePickerVisible, setThemePickerVisible] = useState(false);
