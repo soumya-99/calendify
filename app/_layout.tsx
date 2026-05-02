@@ -12,6 +12,8 @@ import { StatusBar } from 'expo-status-bar';
 import React, { useEffect } from 'react';
 import { ActivityIndicator, AppState, StyleSheet, Text, useColorScheme, View, type AppStateStatus } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import 'react-native-reanimated';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { create } from 'zustand';
@@ -105,41 +107,45 @@ function RootLayoutInner() {
   const isDark = themeMode === 'system' ? systemScheme === 'dark' : themeMode === 'dark';
 
   return (
-    <GestureHandlerRootView style={[styles.root, { backgroundColor: colors.background }]}>
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: colors.background },
-          animation: 'slide_from_right',
-        }}
-      >
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen
-          name="day/[date]"
-          options={{
-            headerShown: false,
-            animation: 'slide_from_right',
-          }}
-        />
-        <Stack.Screen
-          name="event/[id]"
-          options={{
-            headerShown: false,
-            animation: 'slide_from_right',
-          }}
-        />
-        <Stack.Screen
-          name="add"
-          options={{
-            headerShown: false,
-            animation: 'slide_from_bottom',
-            presentation: 'modal',
-          }}
-        />
-      </Stack>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
-      <GlobalLoader />
-    </GestureHandlerRootView>
+    <SafeAreaProvider>
+      <GestureHandlerRootView style={[styles.root, { backgroundColor: colors.background }]}>
+        <KeyboardProvider>
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: colors.background },
+              animation: 'slide_from_right',
+            }}
+          >
+            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+            <Stack.Screen
+              name="day/[date]"
+              options={{
+                headerShown: false,
+                animation: 'slide_from_right',
+              }}
+            />
+            <Stack.Screen
+              name="event/[id]"
+              options={{
+                headerShown: false,
+                animation: 'slide_from_right',
+              }}
+            />
+            <Stack.Screen
+              name="add"
+              options={{
+                headerShown: false,
+                animation: 'slide_from_bottom',
+                presentation: 'modal',
+              }}
+            />
+          </Stack>
+          <StatusBar style={isDark ? 'light' : 'dark'} />
+          <GlobalLoader />
+        </KeyboardProvider>
+      </GestureHandlerRootView>
+    </SafeAreaProvider>
   );
 }
 

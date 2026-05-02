@@ -46,16 +46,23 @@ export const BirthdaySchema = BaseEntrySchema.extend({
   contactId: z.string().optional(),
 });
 
+export const HolidaySchema = BaseEntrySchema.extend({
+  type: z.literal('HOLIDAY'),
+  allDay: z.boolean(),
+  country: z.string().optional(),
+});
+
 export const AnyEntrySchema = z.union([
   ReminderSchema,
   TaskSchema,
   EventSchema,
   BirthdaySchema,
+  HolidaySchema,
 ]);
 
 export const AccountSchema = z.object({
   id: z.string().min(1),
-  email: z.email(),
+  email: z.string().min(1),
   displayName: z.string().min(1),
   avatarColor: z.string(),
   isDefault: z.boolean(),

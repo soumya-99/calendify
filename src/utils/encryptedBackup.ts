@@ -73,16 +73,22 @@ export function parseEncryptedBackup(content: string) {
     throw new Error('Unsupported or malformed .calendify backup.');
   }
 
+  let plaintext: string;
   try {
     const salt = hexToBytes(parsed.salt);
     const nonce = hexToBytes(parsed.nonce);
     const ciphertext = hexToBytes(parsed.ciphertext);
     const key = deriveBackupKey(salt);
     const decrypted = gcm(key, nonce).decrypt(ciphertext);
-    const plaintext = new TextDecoder().decode(decrypted);
-    return deserializeCalendify(plaintext);
+    plaintext = new TextDecoder().decode(decrypted);
   } catch {
     throw new Error('Unable to decrypt this .calendify backup.');
+  }
+
+  try {
+    return deserializeCalendify(plaintext);
+  } catch (e) {
+    throw new Error(`Backup data is invalid: ${e instanceof Error ? e.message : 'unknown error'}`);
   }
 }
 

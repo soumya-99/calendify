@@ -1,16 +1,15 @@
 import { useThemeColors } from '@/src/hooks/useThemeColors';
-import { TypeScale } from '@/src/theme/typography';
-import type { CalendarEntry } from '@/src/types/entries';
+import type { Holiday } from '@/src/types/entries';
 import { Globe } from 'lucide-react-native';
 import React from 'react';
-import { Text } from 'react-native';
 import { BaseCard } from './BaseCard';
 
 interface HolidayCardProps {
-  holiday: CalendarEntry;
+  holiday: Holiday;
+  onPress?: () => void;
 }
 
-export function HolidayCard({ holiday }: HolidayCardProps) {
+export function HolidayCard({ holiday, onPress }: HolidayCardProps) {
   const colors = useThemeColors();
 
   return (
@@ -19,6 +18,7 @@ export function HolidayCard({ holiday }: HolidayCardProps) {
       accentColor={holiday.colorTag}
       icon={<Globe size={20} color={holiday.colorTag} />}
       subtitle="Public Holiday"
+      onPress={onPress}
     />
   );
 }

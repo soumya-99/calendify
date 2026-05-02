@@ -187,7 +187,7 @@ export class NotificationService {
 
     // Debounce to prevent rapid multiple calls (e.g. from multiple useEffects)
     if (this.syncTimeout) clearTimeout(this.syncTimeout);
-    
+
     this.syncTimeout = setTimeout(async () => {
       if (this.isSyncing) return;
       this.isSyncing = true;
@@ -195,53 +195,53 @@ export class NotificationService {
       try {
         // Clear all to ensure a fresh slate
         await Notifications.cancelAllScheduledNotificationsAsync();
-        
+
         const eligible = entries
-      .filter((e) => {
-        if (!this.isFuture(e)) return false;
-        if (e.type === 'REMINDER' && !prefs.remindersEnabled) return false;
-        if (e.type === 'EVENT' && !prefs.eventsEnabled) return false;
-        if (e.type === 'BIRTHDAY' && !prefs.birthdaysEnabled) return false;
-        if (e.type === 'TASK') return false;
-        return true;
-      })
-      .sort((a, b) => {
-        const da = new Date(a.date).getTime();
-        const db = new Date(b.date).getTime();
-        if (da !== db) return da - db;
-        
-        // Same day, sort by time if possible
-        const getTimeVal = (e: AnyEntry) => {
-          if (e.type === 'EVENT') return (e as CalendarEvent).startTime;
-          if (e.type === 'REMINDER') return (e as Reminder).time;
-          return '00:00';
-        };
-        return getTimeVal(a).localeCompare(getTimeVal(b));
-      })
-      .slice(0, 60); // Increased limit slightly
+          .filter((e) => {
+            if (!this.isFuture(e)) return false;
+            if (e.type === 'REMINDER' && !prefs.remindersEnabled) return false;
+            if (e.type === 'EVENT' && !prefs.eventsEnabled) return false;
+            if (e.type === 'BIRTHDAY' && !prefs.birthdaysEnabled) return false;
+            if (e.type === 'TASK') return false;
+            return true;
+          })
+          .sort((a, b) => {
+            const da = new Date(a.date).getTime();
+            const db = new Date(b.date).getTime();
+            if (da !== db) return da - db;
 
-    const newMap: NotifIdMap = {};
-    const CHUNK = 5;
-    for (let i = 0; i < eligible.length; i += CHUNK) {
-      const chunk = eligible.slice(i, i + CHUNK);
-      const results = await Promise.all(
-        chunk.map(async (e) => {
-          // Schedule without persisting each time to avoid MMKV overhead
-          const ids = await this.scheduleEntry(e, false);
-          return { entryId: e.id, notifIds: ids, type: e.type as NotifiableEntryType };
-        })
-      );
+            // Same day, sort by time if possible
+            const getTimeVal = (e: AnyEntry) => {
+              if (e.type === 'EVENT') return (e as CalendarEvent).startTime;
+              if (e.type === 'REMINDER') return (e as Reminder).time;
+              return '00:00';
+            };
+            return getTimeVal(a).localeCompare(getTimeVal(b));
+          })
+          .slice(0, 60); // Increased limit slightly
 
-      results.forEach((res) => {
-        if (res.notifIds && res.notifIds.length > 0) {
-          newMap[res.entryId] = {
-            notifIds: res.notifIds,
-            entryId: res.entryId,
-            type: res.type,
-          };
+        const newMap: NotifIdMap = {};
+        const CHUNK = 5;
+        for (let i = 0; i < eligible.length; i += CHUNK) {
+          const chunk = eligible.slice(i, i + CHUNK);
+          const results = await Promise.all(
+            chunk.map(async (e) => {
+              // Schedule without persisting each time to avoid MMKV overhead
+              const ids = await this.scheduleEntry(e, false);
+              return { entryId: e.id, notifIds: ids, type: e.type as NotifiableEntryType };
+            })
+          );
+
+          results.forEach((res) => {
+            if (res.notifIds && res.notifIds.length > 0) {
+              newMap[res.entryId] = {
+                notifIds: res.notifIds,
+                entryId: res.entryId,
+                type: res.type,
+              };
+            }
+          });
         }
-      });
-    }
 
         storage.set(MMKV_KEYS.NOTIF_ID_MAP, JSON.stringify(newMap));
       } catch (err) {
@@ -308,8 +308,12 @@ export class NotificationService {
     if (entry.type === 'EVENT') {
       const e = entry as CalendarEvent;
       eventTime = new Date(e.date);
-      const [h, m] = e.startTime.split(':').map(Number);
-      eventTime.setHours(h, m, 0, 0);
+      if (e.allDay) {
+        eventTime.setHours(0, 0, 0, 0);
+      } else {
+        const [h, m] = e.startTime.split(':').map(Number);
+        eventTime.setHours(h, m, 0, 0);
+      }
     } else if (entry.type === 'REMINDER') {
       const r = entry as Reminder;
       eventTime = new Date(r.date);
@@ -394,7 +398,8 @@ export class NotificationService {
   private static buildBody(entry: AnyEntry): string {
     if (entry.type === 'EVENT') {
       const e = entry as CalendarEvent;
-      return [e.startTime, e.location].filter(Boolean).join(' · ');
+      const timeText = e.allDay ? 'All Day' : e.startTime;
+      return [timeText, e.location].filter(Boolean).join(' · ');
     }
     if (entry.type === 'BIRTHDAY') {
       const b = entry as Birthday;

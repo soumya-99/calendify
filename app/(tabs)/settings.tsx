@@ -69,7 +69,6 @@ import {
   TextInput,
   View
 } from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import Animated, { Easing, interpolate, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -558,7 +557,7 @@ export default function SettingsScreen() {
     <AnimatedScreen style={{ backgroundColor: colors.background }}>
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + Spacing.base }]}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: Spacing.base }]}
         showsVerticalScrollIndicator={false}
       >
         <Text style={[TypeScale.headlineMedium, styles.title, { color: colors.onBackground }]}>
@@ -814,46 +813,39 @@ export default function SettingsScreen() {
         <Pressable style={styles.modalBackdrop} onPress={() => setAddAccountVisible(false)}>
           <View />
         </Pressable>
-        <KeyboardAvoidingView style={styles.modalContainer} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-          <KeyboardAwareScrollView
-            contentContainerStyle={styles.modalScrollContent}
-            keyboardShouldPersistTaps="handled"
-            keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-            enableOnAndroid
-            extraHeight={Spacing.hero}
-            extraScrollHeight={Spacing.section}
-            keyboardOpeningTime={0}
-          >
-            <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
-              <View style={[styles.handle, { backgroundColor: colors.outlineVariant }]} />
-              <Text style={[TypeScale.titleLarge, styles.modalTitle, { color: colors.onSurface }]}>
-                Add Account
-              </Text>
-              <TextInput
-                style={[styles.input, { backgroundColor: colors.surfaceVariant, color: colors.onSurface }]}
-                placeholder="Email"
-                placeholderTextColor={colors.onSurfaceVariant}
-                value={newEmail}
-                onChangeText={setNewEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-              <TextInput
-                style={[styles.input, { backgroundColor: colors.surfaceVariant, color: colors.onSurface }]}
-                placeholder="Display Name"
-                placeholderTextColor={colors.onSurfaceVariant}
-                value={newName}
-                onChangeText={setNewName}
-              />
-              <HapticButton
-                onPress={handleAddAccount}
-                hapticStyle="heavy"
-                style={[styles.saveButton, { backgroundColor: colors.primary }]}
-              >
-                <Text style={[TypeScale.labelLarge, { color: colors.onPrimary }]}>Add Account</Text>
-              </HapticButton>
-            </View>
-          </KeyboardAwareScrollView>
+        <KeyboardAvoidingView
+          style={styles.modalContainer}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <View style={[styles.modalSheet, { backgroundColor: colors.surface }]}>
+            <View style={[styles.handle, { backgroundColor: colors.outlineVariant }]} />
+            <Text style={[TypeScale.titleLarge, styles.modalTitle, { color: colors.onSurface }]}>
+              Add Account
+            </Text>
+            <TextInput
+              style={[styles.input, { backgroundColor: colors.surfaceVariant, color: colors.onSurface }]}
+              placeholder="Email"
+              placeholderTextColor={colors.onSurfaceVariant}
+              value={newEmail}
+              onChangeText={setNewEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            <TextInput
+              style={[styles.input, { backgroundColor: colors.surfaceVariant, color: colors.onSurface }]}
+              placeholder="Display Name"
+              placeholderTextColor={colors.onSurfaceVariant}
+              value={newName}
+              onChangeText={setNewName}
+            />
+            <HapticButton
+              onPress={handleAddAccount}
+              hapticStyle="heavy"
+              style={[styles.saveButton, { backgroundColor: colors.primary }]}
+            >
+              <Text style={[TypeScale.labelLarge, { color: colors.onPrimary }]}>Add Account</Text>
+            </HapticButton>
+          </View>
         </KeyboardAvoidingView>
       </Modal>
 

@@ -17,12 +17,12 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 
 export default function AddEventScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const colors = useThemeColors();
-  const insets = useSafeAreaInsets();
+
   const router = useRouter();
   const haptics = useHaptics();
   const addEntry = useEventsStore((s) => s.addEntry);
@@ -128,7 +128,7 @@ export default function AddEventScreen() {
     <AnimatedScreen style={{ backgroundColor: colors.background }}>
       <KeyboardAwareFormScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top }]}
+        contentContainerStyle={styles.scrollContent}
       >
         <View style={styles.header}>
           <HapticButton onPress={() => router.back()} hapticStyle="light" style={styles.backButton}>

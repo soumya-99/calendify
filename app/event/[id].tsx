@@ -28,8 +28,9 @@ import {
   ArrowUp,
   ArrowDown,
   Minus,
+  Globe,
 } from 'lucide-react-native';
-import type { CalendarEvent, Reminder, Birthday, Task } from '@/src/types/entries';
+import type { CalendarEvent, Reminder, Birthday, Task, Holiday } from '@/src/types/entries';
 
 export default function EventDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -45,6 +46,7 @@ export default function EventDetailScreen() {
 
   const handleEdit = useCallback(() => {
     if (!entry) return;
+    if (entry.type === 'HOLIDAY') return; // Holidays are not editable
     const routeByType = { EVENT: 'event', REMINDER: 'reminder', TASK: 'task', BIRTHDAY: 'birthday' } as const;
     router.push(`/add/${routeByType[entry.type]}?id=${entry.id}` as never);
   }, [entry, router]);
@@ -68,6 +70,7 @@ export default function EventDetailScreen() {
   if (!entry) return null;
 
   const accentColor = DOT_COLORS[entry.type] || colors.primary;
+  const isHoliday = entry.type === 'HOLIDAY';
   
   const renderInfoTile = (icon: any, label: string, value: string | React.ReactNode, color?: string) => (
     <View style={[styles.tile, { backgroundColor: colors.surface, borderColor: colors.outlineVariant }]}>
@@ -93,15 +96,17 @@ export default function EventDetailScreen() {
         showsVerticalScrollIndicator={false}
       >
         {/* Hero Section */}
-        <View style={[styles.hero, { backgroundColor: `${accentColor}12`, paddingTop: insets.top }]}>
+        <View style={[styles.hero, { backgroundColor: `${accentColor}12` }]}>
           <View style={styles.header}>
             <HapticButton onPress={() => router.back()} style={styles.navBtn}>
               <ChevronLeft size={24} color={colors.onSurface} />
             </HapticButton>
             <View style={styles.headerRight}>
-              <HapticButton onPress={handleEdit} style={styles.navBtn}>
-                <Pencil size={20} color={colors.onSurface} />
-              </HapticButton>
+              {!isHoliday && (
+                <HapticButton onPress={handleEdit} style={styles.navBtn}>
+                  <Pencil size={20} color={colors.onSurface} />
+                </HapticButton>
+              )}
               <HapticButton onPress={handleDelete} style={styles.navBtn}>
                 <Trash2 size={20} color={colors.error} />
               </HapticButton>
@@ -114,6 +119,7 @@ export default function EventDetailScreen() {
               {entry.type === 'REMINDER' && <Clock size={32} color="#FFF" />}
               {entry.type === 'TASK' && <CheckSquareIcon size={32} color="#FFF" />}
               {entry.type === 'BIRTHDAY' && <Gift size={32} color="#FFF" />}
+              {entry.type === 'HOLIDAY' && <Globe size={32} color="#FFF" />}
             </View>
             <Text style={[TypeScale.headlineSmall, styles.heroTitle, { color: colors.onSurface }]}>
               {entry.title}
@@ -183,6 +189,14 @@ export default function EventDetailScreen() {
               {renderInfoTile(User, 'Person', (entry as Birthday).personName, accentColor)}
               {(entry as Birthday).birthYear && renderInfoTile(Gift, 'Age', `Turning ${calculateAge((entry as Birthday).birthYear!)}`, accentColor)}
               {renderInfoTile(AlertTriangle, 'Countdown', `${daysUntilBirthday(entry.date)} days remaining`, accentColor)}
+            </>
+          )}
+
+          {entry.type === 'HOLIDAY' && (
+            <>
+              {renderInfoTile(Globe, 'Type', 'Public Holiday', accentColor)}
+              {(entry as Holiday).country && renderInfoTile(MapPin, 'Region', (entry as Holiday).country!, accentColor)}
+              {(entry as Holiday).allDay && renderInfoTile(Clock, 'Duration', 'All Day', accentColor)}
             </>
           )}
 

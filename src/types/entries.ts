@@ -50,4 +50,10 @@ export interface Birthday extends CalendarEntry {
   contactId?: string;
 }
 
-export type AnyEntry = Reminder | Task | CalendarEvent | Birthday;
+export interface Holiday extends CalendarEntry {
+  type: 'HOLIDAY';
+  allDay: boolean;
+  country?: string;
+}
+
+export type AnyEntry = Reminder | Task | CalendarEvent | Birthday | Holiday;
