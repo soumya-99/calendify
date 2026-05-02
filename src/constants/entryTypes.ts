@@ -5,6 +5,7 @@ export const ENTRY_TYPES: Record<EntryType, EntryType> = {
   TASK: 'TASK',
   EVENT: 'EVENT',
   BIRTHDAY: 'BIRTHDAY',
+  HOLIDAY: 'HOLIDAY',
 } as const;
 
 export const ENTRY_TYPE_LABELS: Record<EntryType, string> = {
@@ -12,4 +13,5 @@ export const ENTRY_TYPE_LABELS: Record<EntryType, string> = {
   TASK: 'Task',
   EVENT: 'Event',
   BIRTHDAY: 'Birthday',
+  HOLIDAY: 'Holiday',
 };

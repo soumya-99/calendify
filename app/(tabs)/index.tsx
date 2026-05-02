@@ -18,6 +18,7 @@ import { TypeScale } from '@/src/theme/typography';
 import type {
   Birthday,
   CalendarEvent,
+  Holiday,
   Reminder,
   Task,
 } from '@/src/types/entries';
@@ -93,7 +94,7 @@ export default function HomeScreen() {
     [selectedDateEntries]
   );
   const holidays = useMemo(
-    () => selectedDateEntries.filter((e) => e.type === 'HOLIDAY'),
+    () => selectedDateEntries.filter((e): e is Holiday => e.type === 'HOLIDAY'),
     [selectedDateEntries]
   );
 
@@ -103,7 +104,7 @@ export default function HomeScreen() {
     <AnimatedScreen style={{ backgroundColor: colors.background }}>
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top }]}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         <CalendarGrid />
@@ -146,6 +147,7 @@ export default function HomeScreen() {
               <HolidayCard
                 key={holiday.id}
                 holiday={holiday}
+                onPress={() => router.push(`/event/${holiday.id}` as never)}
               />
             ))}
           </>

@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, View, ScrollView, Text } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { AnimatedScreen } from '@/src/components/ui/AnimatedScreen';
 import { HapticButton } from '@/src/components/ui/HapticButton';
 import { EventCard } from '@/src/components/cards/EventCard';
@@ -27,7 +27,7 @@ import type {
 export default function DayDetailScreen() {
   const { date } = useLocalSearchParams<{ date: string }>();
   const colors = useThemeColors();
-  const insets = useSafeAreaInsets();
+
   const router = useRouter();
 
   const allEntries = useEventsStore((s) => s.entries);
@@ -59,7 +59,7 @@ export default function DayDetailScreen() {
     <AnimatedScreen style={{ backgroundColor: colors.background }}>
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top }]}
+        contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}

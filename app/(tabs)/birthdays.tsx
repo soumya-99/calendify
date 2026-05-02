@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { StyleSheet, View, ScrollView, Text } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { useRouter } from 'expo-router';
 import { AnimatedScreen } from '@/src/components/ui/AnimatedScreen';
 import { BirthdayCard } from '@/src/components/cards/BirthdayCard';
@@ -17,7 +17,7 @@ import type { Birthday } from '@/src/types/entries';
 
 export default function BirthdaysScreen() {
   const colors = useThemeColors();
-  const insets = useSafeAreaInsets();
+
   const router = useRouter();
 
   const entries = useEventsStore((s) => s.entries);
@@ -40,7 +40,7 @@ export default function BirthdaysScreen() {
     <AnimatedScreen style={{ backgroundColor: colors.background }}>
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + Spacing.base }]}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: Spacing.base }]}
         showsVerticalScrollIndicator={false}
       >
         <Text style={[TypeScale.headlineMedium, styles.title, { color: colors.onBackground }]}>

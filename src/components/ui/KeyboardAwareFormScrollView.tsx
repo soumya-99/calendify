@@ -1,7 +1,7 @@
 import { Spacing } from '@/src/theme/spacing';
 import React from 'react';
 import { Platform, StyleProp, StyleSheet, ViewStyle } from 'react-native';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-controller';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface KeyboardAwareFormScrollViewProps {
@@ -28,11 +28,7 @@ export function KeyboardAwareFormScrollView({
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
       keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
-      enableOnAndroid
-      enableAutomaticScroll
-      extraHeight={Spacing.hero}
-      extraScrollHeight={Spacing.section}
-      keyboardOpeningTime={0}
+      bottomOffset={Spacing.hero}
     >
       {children}
     </KeyboardAwareScrollView>

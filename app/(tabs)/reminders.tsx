@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { StyleSheet, View, ScrollView, Text } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { useRouter } from 'expo-router';
 import { AnimatedScreen } from '@/src/components/ui/AnimatedScreen';
 import { ReminderCard } from '@/src/components/cards/ReminderCard';
@@ -20,7 +20,7 @@ type Filter = 'all' | 'today' | 'upcoming' | 'overdue';
 
 export default function RemindersScreen() {
   const colors = useThemeColors();
-  const insets = useSafeAreaInsets();
+
   const router = useRouter();
   const [filter, setFilter] = useState<Filter>('all');
 
@@ -67,7 +67,7 @@ export default function RemindersScreen() {
     <AnimatedScreen style={{ backgroundColor: colors.background }}>
       <ScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top + Spacing.base }]}
+        contentContainerStyle={[styles.scrollContent, { paddingTop: Spacing.base }]}
         showsVerticalScrollIndicator={false}
       >
         <Text style={[TypeScale.headlineMedium, styles.title, { color: colors.onBackground }]}>

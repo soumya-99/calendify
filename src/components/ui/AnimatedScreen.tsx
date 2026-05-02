@@ -1,20 +1,21 @@
 import React from 'react';
-import { StyleSheet, View, ViewStyle } from 'react-native';
-import Animated, { FadeIn, FadeOut, SlideInRight, SlideOutLeft, useReducedMotion } from 'react-native-reanimated';
-import { Durations } from '@/src/theme/motion';
+import { StyleSheet, ViewStyle } from 'react-native';
+import { useReducedMotion } from 'react-native-reanimated';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 interface AnimatedScreenProps {
   children: React.ReactNode;
   style?: ViewStyle;
+  edges?: ('top' | 'bottom' | 'left' | 'right')[];
 }
 
-export function AnimatedScreen({ children, style }: AnimatedScreenProps) {
+export function AnimatedScreen({ children, style, edges = ['top', 'left', 'right'] }: AnimatedScreenProps) {
   const reducedMotion = useReducedMotion();
 
   return (
-    <View style={[styles.container, style]}>
+    <SafeAreaView style={[styles.container, style]} edges={edges}>
       {children}
-    </View>
+    </SafeAreaView>
   );
 }
 

@@ -1,5 +1,5 @@
 import { StyleSheet, View, Text, TextInput } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 import { AnimatedScreen } from '@/src/components/ui/AnimatedScreen';
 import { HapticButton } from '@/src/components/ui/HapticButton';
 import { KeyboardAwareFormScrollView } from '@/src/components/ui/KeyboardAwareFormScrollView';
@@ -21,7 +21,7 @@ import React, { useState, useCallback, useEffect, useMemo } from 'react';
 export default function AddBirthdayScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const colors = useThemeColors();
-  const insets = useSafeAreaInsets();
+
   const router = useRouter();
   const haptics = useHaptics();
   const addEntry = useEventsStore((s) => s.addEntry);
@@ -78,7 +78,7 @@ export default function AddBirthdayScreen() {
     <AnimatedScreen style={{ backgroundColor: colors.background }}>
       <KeyboardAwareFormScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top }]}
+        contentContainerStyle={styles.scrollContent}
       >
         <View style={styles.header}>
           <HapticButton onPress={() => router.back()} hapticStyle="light" style={styles.backButton}>

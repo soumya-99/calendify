@@ -1,7 +1,7 @@
 {
   "name": "calendify",
   "main": "expo-router/entry",
-  "version": "2.1.1",
+  "version": "2.1.2",
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
@@ -55,7 +55,7 @@
     "react-dom": "19.2.0",
     "react-native": "0.83.6",
     "react-native-gesture-handler": "~2.30.0",
-    "react-native-keyboard-aware-scroll-view": "^0.9.5",
+    "react-native-keyboard-controller": "^1.21.6",
     "react-native-mmkv": "^4.3.1",
     "react-native-reanimated": "4.2.1",
     "react-native-safe-area-context": "~5.6.0",

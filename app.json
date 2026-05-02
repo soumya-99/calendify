@@ -2,7 +2,7 @@
   "expo": {
     "name": "Calendify",
     "slug": "calendify",
-    "version": "2.1.1",
+    "version": "2.1.2",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "calendify",

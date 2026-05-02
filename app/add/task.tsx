@@ -17,7 +17,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { ChevronLeft, ArrowDown, ArrowUp, Minus } from 'lucide-react-native';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { StyleSheet, Text, TextInput, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
 
 const PRIORITY_STYLES: Record<Priority, { color: string; icon: any }> = {
   LOW: { color: '#43A047', icon: ArrowDown },
@@ -28,7 +28,7 @@ const PRIORITY_STYLES: Record<Priority, { color: string; icon: any }> = {
 export default function AddTaskScreen() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const colors = useThemeColors();
-  const insets = useSafeAreaInsets();
+
   const router = useRouter();
   const haptics = useHaptics();
   const addEntry = useEventsStore((s) => s.addEntry);
@@ -107,7 +107,7 @@ export default function AddTaskScreen() {
     <AnimatedScreen style={{ backgroundColor: colors.background }}>
       <KeyboardAwareFormScrollView
         style={styles.scrollView}
-        contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top }]}
+        contentContainerStyle={styles.scrollContent}
       >
         <View style={styles.header}>
           <HapticButton onPress={() => router.back()} hapticStyle="light" style={styles.backButton}>
