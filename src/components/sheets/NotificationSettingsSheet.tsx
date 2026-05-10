@@ -121,7 +121,7 @@ const NotificationSettingsSheet = forwardRef<NotificationSettingsSheetRef>((_, r
               </View>
               <View style={styles.optionText}>
                 <Text style={[TypeScale.titleSmall, { color: colors.onSurface }]}>Birthdays</Text>
-                <Text style={[TypeScale.bodySmall, { color: colors.onSurfaceVariant }]}>Morning of the special day</Text>
+                <Text style={[TypeScale.bodySmall, { color: colors.onSurfaceVariant }]}>At midnight + 24h &amp; 12h advance alerts</Text>
               </View>
               <Switch
                 value={birthdaysEnabled}

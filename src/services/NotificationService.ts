@@ -123,18 +123,26 @@ export class NotificationService {
     const triggers = this.buildTriggers(entry);
     if (triggers.length === 0) return null;
 
-    const content: Notifications.NotificationContentInput = {
-      title: this.buildTitle(entry),
-      body: this.buildBody(entry),
-      data: { entryId: entry.id, entryType: entry.type, date: entry.date },
-      sound: true,
-      color: COLOR_MAP[entry.type] ?? '#4CAF9A',
-    };
-
     const notifIds: string[] = [];
     for (const trigger of triggers) {
+      // For birthdays: use different title/body for the on-day (12 AM) trigger vs. advance reminders
+      const isOnDay = entry.type === 'BIRTHDAY' && !!(trigger as { _isOnDay?: boolean })._isOnDay;
+      // Strip internal metadata before passing to Expo
+      const cleanTrigger: Notifications.NotificationTriggerInput = (() => {
+        const { _isOnDay: _, ...rest } = trigger as { _isOnDay?: boolean } & Record<string, unknown>;
+        return rest as Notifications.NotificationTriggerInput;
+      })();
+
+      const content: Notifications.NotificationContentInput = {
+        title: this.buildTitle(entry, isOnDay),
+        body: this.buildBody(entry, isOnDay),
+        data: { entryId: entry.id, entryType: entry.type, date: entry.date },
+        sound: true,
+        color: COLOR_MAP[entry.type] ?? '#4CAF9A',
+      };
+
       try {
-        const id = await Notifications.scheduleNotificationAsync({ content, trigger });
+        const id = await Notifications.scheduleNotificationAsync({ content, trigger: cleanTrigger });
         notifIds.push(id);
       } catch (err) {
         // Silently fail for individual trigger failures (e.g. past dates)
@@ -281,23 +289,27 @@ export class NotificationService {
       // Get upcoming birthday (this year or next)
       let birthdayDate = new Date(bday);
       birthdayDate.setFullYear(new Date().getFullYear());
-      if (birthdayDate.getTime() < now) {
+      // If today is the birthday, still keep it as "this year" so 12:00 AM trigger fires
+      if (birthdayDate.getTime() < now && birthdayDate.toDateString() !== new Date().toDateString()) {
         birthdayDate.setFullYear(birthdayDate.getFullYear() + 1);
       }
 
       const birthdayTime = birthdayDate.getTime();
-      const triggersTimes = [
-        birthdayTime - 24 * 60 * 60 * 1000, // 24h before
-        birthdayTime - 12 * 60 * 60 * 1000  // 12h before
+      const triggersTimes: Array<{ time: number; isOnDay: boolean }> = [
+        { time: birthdayTime,                              isOnDay: true  }, // 12:00 AM on the day
+        { time: birthdayTime - 24 * 60 * 60 * 1000,       isOnDay: false }, // 24h before
+        { time: birthdayTime - 12 * 60 * 60 * 1000,       isOnDay: false }, // 12h before
       ];
 
-      for (const time of triggersTimes) {
+      for (const { time, isOnDay } of triggersTimes) {
         if (time > nowBuffer) {
           triggers.push({
             type: Notifications.SchedulableTriggerInputTypes.DATE,
             date: new Date(time),
             channelId,
-          });
+            // Attach metadata so buildTitle/buildBody can detect the on-day trigger
+            ...(isOnDay ? { _isOnDay: true } : {}),
+          } as Notifications.NotificationTriggerInput);
         }
       }
       return triggers;
@@ -386,7 +398,10 @@ export class NotificationService {
     return unique;
   }
 
-  private static buildTitle(entry: AnyEntry): string {
+  private static buildTitle(entry: AnyEntry, isOnDay = false): string {
+    if (entry.type === 'BIRTHDAY' && isOnDay) {
+      return `🎂 Happy Birthday — ${entry.title}`;
+    }
     const map: Record<string, string> = {
       REMINDER: '⏰ Reminder',
       EVENT: '📅 Upcoming event',
@@ -395,7 +410,7 @@ export class NotificationService {
     return `${map[entry.type] ?? ''} — ${entry.title}`;
   }
 
-  private static buildBody(entry: AnyEntry): string {
+  private static buildBody(entry: AnyEntry, isOnDay = false): string {
     if (entry.type === 'EVENT') {
       const e = entry as CalendarEvent;
       const timeText = e.allDay ? 'All Day' : e.startTime;
@@ -403,6 +418,10 @@ export class NotificationService {
     }
     if (entry.type === 'BIRTHDAY') {
       const b = entry as Birthday;
+      if (isOnDay) {
+        const age = b.birthYear ? ` is turning ${new Date().getFullYear() - b.birthYear}` : '';
+        return `Today is ${b.personName}'s birthday!${age} Send them your wishes 🎉`;
+      }
       const age = b.birthYear ? ` turns ${new Date().getFullYear() - b.birthYear}` : '';
       return `${b.personName}${age} is having a birthday soon! Don't forget to wish them! 🎉`;
     }
@@ -410,6 +429,21 @@ export class NotificationService {
   }
 
   private static isFuture(entry: CalendarEntry): boolean {
+    // For birthdays: they recur annually, so we check the NEXT occurrence date,
+    // not the stored date (which may be years in the past).
+    if (entry.type === 'BIRTHDAY') {
+      const bday = new Date(entry.date);
+      bday.setHours(0, 0, 0, 0);
+      const nextOccurrence = new Date(bday);
+      nextOccurrence.setFullYear(new Date().getFullYear());
+      // If this year's date is already fully past (end of that day), move to next year
+      const eod = new Date(nextOccurrence);
+      eod.setHours(23, 59, 59, 999);
+      if (eod < new Date()) {
+        nextOccurrence.setFullYear(nextOccurrence.getFullYear() + 1);
+      }
+      return true; // Birthday always has a future occurrence (next year at latest)
+    }
     const d = new Date(entry.date);
     d.setHours(23, 59, 59, 999);
     return d >= new Date();
